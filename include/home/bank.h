@@ -329,4 +329,10 @@ void func_999(GBState *gb, uint16_t *de, uint8_t stacked_bank, void (*func_01A_6
  */
 void func_020_4B4A_trampoline(GBState *gb, void (*func_020_4B4A)(GBState *));
 
+/**
+ * Calls func_020_4AB3 in bank $20 and restores wCurrentBank.
+ * Corresponds to func_020_4AB3_trampoline (00:1819) in disassembly.
+ */
+void func_020_4AB3_trampoline(GBState *gb, void (*func_020_4AB3)(GBState *));
+
 #endif /* LADX_HOME_BANK_H */

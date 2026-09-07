@@ -91,6 +91,17 @@
 #define UNKNOWN_ROOM_AA              0xAA
 #define UNKNOWN_ROOM_C4              0xC4
 
+/* Pit Falling Warp Hole Rooms */
+#define ROOM_OW_TURTLE_ROCK_WARP_HOLE            0x01
+#define ROOM_OW_UKUKU_PRAIRIE_WARP_HOLE          0x95
+#define ROOM_OW_WATERFALL_WARP_HOLE              0x2C
+#define ROOM_OW_ANIMAL_VILLAGE_WARP_HOLE         0xEC
+#define UNKNOWN_ROOM_1E                          0x1E
+#define ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_1       0x7A
+#define ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_2       0x7B
+#define ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_3       0x7C
+#define ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_4       0x7D
+
 /* Bank 0 Macro Tables ROM Addresses */
 #define KeyDoorTopObjectIds_Addr             0x35F8
 #define KeyDoorBottomObjectIds_Addr          0x3613

@@ -4,14 +4,14 @@
 
 * **Project Name**: Zelda: Link's Awakening DX C/C++ Decompilation
 * **Current Overall Progress**: 56.00%
-* **Number of Verified Functions**: 672
-* **Number of Decompiled Functions**: 495
-* **Number Remaining**: ~544 functions
-* **Current Subsystem**: ROM Bank 2 (Swimming, Diving & Hole Falling, 02:4EF0-02:50C9)
-* **Current Task**: Bank 2 Swimming, Diving, Water Splash & Unknown Motion Handler routines decompiled and verified
-* **Last Completed Task**: Decompiled and verified `func_002_5928`, `LinkMotionSwimmingHandler`, `LinkMotionUnknownHandler`, and velocity lookup tables `Data_002_4EF0`–`4F20` (`02:4EF0`-`02:50C9`, `02:5928`)
-* **Next Task**: Decompile and verify Bank 2 Pit Falling Subsystem (`LinkMotionFallingDownHandler`, `02:50D4`-`02:51BB`)
-* **Last Update Timestamp**: 2026-09-08T00:15:00+03:00
+* **Number of Verified Functions**: 681
+* **Number of Decompiled Functions**: 504
+* **Number Remaining**: ~535 functions
+* **Current Subsystem**: ROM Bank 2 (Swimming, Diving & Hole Falling, Item Got, Link Recover, 02:4EF0-02:52DF)
+* **Current Task**: Bank 2 Item Got & Link Recover handlers decompiled and verified
+* **Last Completed Task**: Decompiled and verified `HandleGotItemA`, `HandleGotItemB`, `func_002_523A`, `func_002_523F`, `func_002_524A`, and `LinkMotionRecoverHandler` (`02:51BC`-`02:52B8`)
+* **Next Task**: Decompile and verify Bank 2 remaining handlers (Magic Rod, Side-scrolling physics, Background collision)
+* **Last Update Timestamp**: 2026-09-08T02:00:00+03:00
 
 ---
 
@@ -22,6 +22,15 @@
 | `func_002_5928` | VERIFIED | PASS | PASS | Generates water splash transient VFX and triggers JINGLE_WATER_SPLASH (`02:5928`) |
 | `LinkMotionSwimmingHandler` | VERIFIED | PASS | PASS | Handles swimming/diving physics, A stroke speed boost, B dive toggle, and underwater heart/warp checks (`02:4F30`) |
 | `LinkMotionUnknownHandler` | VERIFIED | PASS | PASS | Unknown / falling motion state 0x0F: blocks input, integrates Z velocity, transitions map on threshold (`02:50A3`) |
+| `LinkMotionFallingDownHandler` | VERIFIED | PASS | PASS | Handles pit/hole falling animation, warp hole transitions, waterfall warps, and pit damage (`02:50D4`) |
+| `func_002_52D6` | VERIFIED | PASS | PASS | Clears staircase state if active during pit fall (`02:52D6`) |
+| `label_002_52B9` | VERIFIED | PASS | PASS | Resets Link to map entry position, sets invincibility, clears motion state (`02:52B9`) |
+| `HandleGotItemA` | VERIFIED | PASS | PASS | Got item dialog handler A: checks countdown 0x2E, plays JINGLE_GOT_POWER_UP (`02:51BC`) |
+| `HandleGotItemB` | VERIFIED | PASS | PASS | Got item dialog handler B: resets spin attack, applies motion, velocity Z, animation state, builds OAM for item display (`02:51C7`) |
+| `func_002_523A` | VERIFIED | PASS | PASS | Got item OAM helper: writes piece of power/guardian acorn tile and attribute 0x14 (`02:523A`) |
+| `func_002_523F` | VERIFIED | PASS | PASS | Got item OAM helper: writes magic powder/toadstool tile and attribute 0x14 (`02:523F`) |
+| `func_002_524A` | VERIFIED | PASS | PASS | Got item OAM helper: writes rod tile and attribute 0x10 (`02:524A`) |
+| `LinkMotionRecoverHandler` | VERIFIED | PASS | PASS | Link recover from knockback: resets spin, clears position increment, handles physics modifier 6 (damage), Angler's Tunnel entrance positioning, animation state based on countdown (`02:5267`) |
 | `label_002_4D97` | VERIFIED | PASS | PASS | Replaces room object with 0xAE, queries GBC attributes via func_91D_jp_92E, emits 10-byte draw command (`02:4D97`) |
 | `func_002_4DFC` | VERIFIED | PASS | PASS | Copies 8 bytes of object palette 1 from WRAM bank 1 to WRAM bank 2 (`02:4DFC`) |
 | `func_002_4E2C` | VERIFIED | PASS | PASS | Loads 8 bytes from Data_002_4E1C into wObjPal8 and flags palette update (`02:4E2C`) |

@@ -28,6 +28,7 @@
 #define OBJ_PHYSICS_REMOVABLE_OBSTACLE 0x30 /* bush/rock/keyblock/cracked block/sword-crystals */
 #define OBJ_PHYSICS_PIT                0x50
 #define OBJ_PHYSICS_PIT_WARP           0x51 /* pit with warp to other room */
+#define OBJ_PHYSICS_TRACTOR_DEVICE     0xFF
 #define OBJ_PHYSICS_HOOKSHOTABLE       0x60 /* solid or dash-crystal */
 #define OBJ_PHYSICS_DOOR_OPEN          0x70 /* open door/flip door */
 #define OBJ_PHYSICS_FINE_COLLISION     0x80 /* for 8x8 tile collision */

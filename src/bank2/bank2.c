@@ -11,6 +11,7 @@
 #include "constants/physics.h"
 #include "constants/sfx.h"
 #include "constants/vfx.h"
+#include "constants/dialog.h"
 #include "home/check_items_to_use.h"
 #include "home/link.h"
 #include "home/vfx.h"
@@ -2146,4 +2147,319 @@ void LinkMotionUnknownHandler(GBState *gb) {
     gb_write_hram(gb, hLinkPositionZ, 0);
     gb_write_hram(gb, hLinkVelocityZ, 0);
     gb_write(gb, wMapEntrancePositionZ, 0x70);
+}
+
+const uint8_t LinkFallingDownAnimation[10] = {
+    LINK_ANIMATION_STATE_FALLING_PIT_1,
+    LINK_ANIMATION_STATE_FALLING_PIT_2,
+    LINK_ANIMATION_STATE_FALLING_PIT_3,
+    LINK_ANIMATION_STATE_FALLING_PIT_3,
+    LINK_ANIMATION_STATE_HIDDEN,
+    LINK_ANIMATION_STATE_HIDDEN,
+    LINK_ANIMATION_STATE_HIDDEN,
+    LINK_ANIMATION_STATE_HIDDEN,
+    LINK_ANIMATION_STATE_HIDDEN,
+    LINK_ANIMATION_STATE_HIDDEN
+};
+
+void func_002_52D6(GBState *gb) {
+    if (!gb) return;
+
+    if (gb_read_hram(gb, hStaircase) != 0) {
+        gb_write_hram(gb, hStaircase, STAIRCASE_INACTIVE);
+    }
+}
+
+void label_002_52B9(GBState *gb) {
+    if (!gb) return;
+
+    gb_write(gb, wInvincibilityCounter, 0x40);
+
+    uint8_t entry_x = gb_read(gb, wLinkMapEntryPositionX);
+    gb_write_hram(gb, hLinkPositionX, entry_x);
+    gb_write_hram(gb, hLinkFinalPositionX, entry_x);
+
+    uint8_t entry_y = gb_read(gb, wLinkMapEntryPositionY);
+    gb_write_hram(gb, hLinkPositionY, entry_y);
+    gb_write_hram(gb, hLinkFinalPositionY, entry_y);
+
+    uint8_t pos_z = gb_read_hram(gb, hLinkPositionZ);
+    uint8_t c145 = (uint8_t)(entry_y - pos_z);
+    gb_write(gb, wC145, c145);
+
+    func_002_4EDD(gb);
+}
+
+void LinkMotionFallingDownHandler(GBState *gb) {
+    if (!gb) return;
+
+    gb_write(gb, wC167, 0x01);
+
+    uint8_t frame = (uint8_t)(gb_read(gb, wLinkAnimationFrame) + 1);
+    gb_write(gb, wLinkAnimationFrame, frame);
+
+    uint8_t anim_idx = (uint8_t)((frame >> 4) & 0x0F);
+
+    if (anim_idx != 0x06) {
+        if (anim_idx < 10) {
+            gb_write_hram(gb, hLinkAnimationState, LinkFallingDownAnimation[anim_idx]);
+        }
+        return;
+    }
+
+    gb_write(gb, wIgnoreLinkCollisionsCountdown, 0);
+    gb_write(gb, wIsUsingSpinAttack, 0);
+    gb_write(gb, wSwordCharge, 0);
+    func_002_52D6(gb);
+
+    uint8_t is_indoor = gb_read(gb, wIsIndoor);
+    uint8_t map_room = 0;
+
+    if (is_indoor == 0) {
+        map_room = gb_read_hram(gb, hMapRoom);
+        if (map_room == ROOM_OW_TURTLE_ROCK_WARP_HOLE ||
+            map_room == ROOM_OW_UKUKU_PRAIRIE_WARP_HOLE ||
+            map_room == ROOM_OW_WATERFALL_WARP_HOLE ||
+            map_room == ROOM_OW_ANIMAL_VILLAGE_WARP_HOLE) {
+            gb_write(gb, wLinkMotionState, LINK_MOTION_TELEPORT);
+            gb_write_hram(gb, hLinkCountdown, 0x40);
+            gb_write_hram(gb, hLinkPhysicsModifier, 0);
+            gb_write_hram(gb, hLinkAnimationState, LINK_ANIMATION_STATE_HIDDEN);
+            return;
+        }
+    }
+
+    uint8_t fall_phys = gb_read(gb, wLinkFallingDownObjectPhysics);
+
+    if (fall_phys == OBJ_PHYSICS_PIT) {
+        if (is_indoor != 0) {
+            goto jr_002_516A;
+        }
+
+        map_room = gb_read_hram(gb, hMapRoom);
+        if (map_room == UNKNOWN_ROOM_1E) {
+            goto jr_002_5155;
+        }
+    } else if (fall_phys == OBJ_PHYSICS_TRACTOR_DEVICE) {
+        goto jr_002_5155;
+    } else {
+        uint8_t warp_cat = gb_read(gb, wWarp0MapCategory);
+        if (warp_cat == 0x02) {
+            gb_write(gb, wWarp0DestinationX, gb_read_hram(gb, hLinkPositionY));
+            gb_write(gb, wWarp0DestinationY, 0);
+        } else {
+            uint8_t pos_x = gb_read_hram(gb, hLinkPositionX);
+            uint8_t pos_y = gb_read_hram(gb, hLinkPositionY);
+            gb_write(gb, wWarp0DestinationX, (uint8_t)((pos_x & 0xF0) + 0x08));
+            gb_write(gb, wWarp0DestinationY, (uint8_t)(pos_y & 0xF0));
+        }
+    }
+
+jr_002_5155:
+    gb_write(gb, wD475, 0x01);
+    gb_write(gb, wMapEntrancePositionZ, 0x70);
+
+    ClearLinkPositionIncrement(gb);
+    gb_write_hram(gb, hLinkVelocityZ, 0);
+    gb_write(gb, wIsLinkInTheAir, 0);
+    ApplyMapFadeOutTransition(gb);
+    return;
+
+jr_002_516A:
+    if (is_indoor == 0) {
+        map_room = gb_read_hram(gb, hMapRoom);
+        if (map_room == UNKNOWN_ROOM_1E) {
+            goto jr_002_5155;
+        }
+    }
+
+    uint8_t map_id = gb_read_hram(gb, hMapId);
+    if (map_id == MAP_CAVE_B) {
+        map_room = gb_read_hram(gb, hMapRoom);
+        if (map_room == ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_1 ||
+            map_room == ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_2 ||
+            map_room == ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_3 ||
+            map_room == ROOM_INDOOR_B_MOUNTAIN_CAVE_ROOM_4) {
+            gb_write(gb, wWarp0MapCategory, 0);
+            gb_write(gb, wWarp0Map, 0);
+            gb_write(gb, wWarp0Room, 0x1A);
+            gb_write(gb, wWarp0DestinationX, 0x68);
+            gb_write(gb, wWarp0DestinationY, 0x56);
+            gb_write(gb, wMapEntrancePositionZ, 0x24);
+            gb_write_hram(gb, hLinkDirection, DIRECTION_DOWN);
+            ApplyMapFadeOutTransition(gb);
+            return;
+        }
+    }
+
+    label_002_52B9(gb);
+    uint8_t health_buf = (uint8_t)(gb_read(gb, wSubtractHealthBuffer) + 0x04);
+    gb_write(gb, wSubtractHealthBuffer, health_buf);
+    gb_write(gb, wC167, 0);
+}
+
+void HandleGotItemA(GBState *gb) {
+    if (!gb) return;
+
+    uint8_t countdown = gb_read(gb, wDialogGotItemCountdown);
+    if (countdown != 0x2E) {
+        HandleGotItemB(gb);
+        return;
+    }
+
+    gb_write_hram(gb, hJingle, JINGLE_GOT_POWER_UP);
+    HandleGotItemB(gb);
+}
+
+void HandleGotItemB(GBState *gb) {
+    if (!gb) return;
+
+    ResetSpinAttack(gb);
+
+    gb_write(gb, wC16A, 0);
+    gb_write(gb, wSwordAnimationState, SWORD_ANIMATION_STATE_NONE);
+    gb_write(gb, wIgnoreLinkCollisionsCountdown, 0);
+    ApplyLinkMotionState(gb, NULL, NULL, NULL);
+    func_21E1(gb);
+
+    uint8_t vel_z = gb_read_hram(gb, hLinkVelocityZ);
+    vel_z = (uint8_t)(vel_z - 2);
+    gb_write_hram(gb, hLinkVelocityZ, vel_z);
+
+    uint8_t pos_z = gb_read_hram(gb, hLinkPositionZ);
+    if ((pos_z & 0x80) != 0) {
+        gb_write_hram(gb, hLinkPositionZ, 0);
+        gb_write(gb, wC149, 0);
+        gb_write_hram(gb, hLinkVelocityZ, 0);
+    }
+
+    gb_write_hram(gb, hLinkAnimationState, LINK_ANIMATION_STATE_UNKNOWN_6B);
+
+    uint16_t bc = wLinkOAMBuffer + 0x10;
+
+    uint8_t pos_y = gb_read_hram(gb, hLinkPositionY);
+    uint8_t pos_z_val = gb_read_hram(gb, hLinkPositionZ);
+    uint8_t val = (uint8_t)(pos_y - pos_z_val);
+    uint8_t c13b = gb_read(gb, wC13B);
+    val = (uint8_t)(val + c13b);
+    val = (uint8_t)(val - 0x10);
+    gb_write_hram(gb, hMultiPurpose0, val);
+
+    uint8_t dialog_item = gb_read(gb, wDialogGotItem);
+
+    if (dialog_item == DIALOG_GOT_PIECE_OF_POWER) {
+        uint8_t pos_x = gb_read_hram(gb, hLinkPositionX);
+        pos_x = (uint8_t)(pos_x - 0x08);
+        gb_write_hram(gb, hMultiPurpose1, pos_x);
+
+        uint8_t frame = gb_read_hram(gb, hFrameCounter);
+        frame = (uint8_t)((frame << 2) & 0x10);
+        gb_write_hram(gb, hMultiPurpose3, frame);
+
+        gb_write_hram(gb, hMultiPurpose2, 0x06);
+
+        func_1819(gb, NULL);
+        return;
+    }
+
+    uint8_t mp0 = gb_read_hram(gb, hMultiPurpose0);
+    mp0 = (uint8_t)(mp0 + 2);
+    gb_write(gb, bc, mp0);
+    bc++;
+
+    uint8_t pos_x = gb_read_hram(gb, hLinkPositionX);
+    gb_write(gb, bc, pos_x);
+    bc++;
+
+    uint8_t e = 0xAE;
+    if (dialog_item == DIALOG_GOT_GUARDIAN_ACORN) {
+        func_002_523A(gb, bc, e);
+    } else if (dialog_item == DIALOG_GOT_MAGIC_POWDER) {
+        e = 0x8E;
+        func_002_523F(gb, bc, e);
+    } else if (dialog_item == DIALOG_GOT_ROD) {
+        e = 0x8C;
+        func_002_524A(gb, bc, e);
+    } else {
+        func_002_523F(gb, bc, e);
+    }
+
+    bc++;
+    gb_write(gb, bc, dialog_item);
+}
+
+void func_002_523A(GBState *gb, uint16_t bc, uint8_t e) {
+    if (!gb) return;
+    gb_write(gb, bc, e);
+    gb_write(gb, bc + 1, 0x14);
+}
+
+void func_002_523F(GBState *gb, uint16_t bc, uint8_t e) {
+    if (!gb) return;
+    gb_write(gb, bc, e);
+    gb_write(gb, bc + 1, 0x14);
+}
+
+void func_002_524A(GBState *gb, uint16_t bc, uint8_t e) {
+    if (!gb) return;
+    gb_write(gb, bc, e);
+    gb_write(gb, bc + 1, 0x10);
+}
+
+void LinkMotionRecoverHandler(GBState *gb) {
+    if (!gb) return;
+
+    ResetSpinAttack(gb);
+    ClearLinkPositionIncrement(gb);
+
+    uint8_t countdown = gb_read_hram(gb, hLinkCountdown);
+    if (countdown != 0) {
+        uint8_t c167 = 0;
+        gb_write(gb, wC167, c167);
+
+        uint8_t phys_mod = gb_read_hram(gb, hLinkPhysicsModifier);
+        if (phys_mod == 0x06) {
+            uint8_t health = gb_read(gb, wSubtractHealthBuffer);
+            health = (uint8_t)(health + 4);
+            gb_write(gb, wSubtractHealthBuffer, health);
+        }
+
+        gb_write_hram(gb, hLinkPhysicsModifier, 0);
+
+        uint8_t is_indoor = gb_read(gb, wIsIndoor);
+        if (is_indoor == 0) {
+            uint8_t map_room = gb_read_hram(gb, hMapRoom);
+            if (map_room == ROOM_OW_ANGLERS_TUNNEL_ENTRANCE) {
+                gb_write(gb, wLinkMapEntryPositionX, 0x48);
+                gb_write(gb, wLinkMapEntryPositionY, 0x30);
+            }
+        }
+
+        label_002_52B9(gb);
+        return;
+    }
+
+    uint8_t e = LINK_ANIMATION_STATE_HIDDEN;
+    countdown = gb_read_hram(gb, hLinkCountdown);
+
+    if (countdown < 0x30) {
+        goto jr_002_52B5;
+    }
+
+    e = LINK_ANIMATION_STATE_HOLD_SWIMMING_2;
+    if (countdown < 0x40) {
+        goto jr_002_52B5;
+    }
+
+    if (countdown != 0x40) {
+        goto jr_002_52B3;
+    }
+
+    gb_write_hram(gb, hWaveSfx, NOISE_SFX_SPIN_ATTACK);
+
+jr_002_52B3:
+    e = LINK_ANIMATION_STATE_HOLD_SWIMMING_1_DOWN;
+
+jr_002_52B5:
+    gb_write_hram(gb, hLinkAnimationState, e);
 }

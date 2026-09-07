@@ -31,6 +31,13 @@
 #define DIALOG_BG_TILE_DARK        0x7E
 #define DIALOG_BG_TILE_LIGHT       0x7F
 
+/* Dialog Got Item Types */
+#define DIALOG_GOT_PIECE_OF_POWER      0x01
+#define DIALOG_GOT_TOADSTOOL           0x02
+#define DIALOG_GOT_MAGIC_POWDER        0x03
+#define DIALOG_GOT_ROD                 0x04
+#define DIALOG_GOT_GUARDIAN_ACORN      0x05
+
 /* Dialog Codepoint Conversion Tables in ROM Bank $1C */
 #define BANK_CodepointToTileMap    0x1C
 #define ADDR_CodepointToTileMap    0x4641

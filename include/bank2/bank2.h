@@ -395,4 +395,39 @@ void LinkMotionSwimmingHandler(GBState *gb,
  */
 void LinkMotionUnknownHandler(GBState *gb);
 
+/* Bank 2 Pit Falling Handler */
+extern const uint8_t LinkFallingDownAnimation[10];
+
+/**
+ * Clears staircase state if active (02:52D6).
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void func_002_52D6(GBState *gb);
+
+/**
+ * Resets Link position to map entry point and sets invincibility (02:52B9).
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void label_002_52B9(GBState *gb);
+
+/**
+ * Handles Link falling down a pit / hole (02:50D4).
+ * Manages falling animation, warp hole transitions, pit damage, and waterfall warps.
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void LinkMotionFallingDownHandler(GBState *gb);
+
+/* Bank 2 Item Got Handlers */
+void HandleGotItemA(GBState *gb);
+void HandleGotItemB(GBState *gb);
+void func_002_523A(GBState *gb, uint16_t bc, uint8_t e);
+void func_002_523F(GBState *gb, uint16_t bc, uint8_t e);
+void func_002_524A(GBState *gb, uint16_t bc, uint8_t e);
+
+/* Bank 2 Link Motion Recover Handler */
+void LinkMotionRecoverHandler(GBState *gb);
+
 #endif /* LADX_BANK2_BANK2_H */

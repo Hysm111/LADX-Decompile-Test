@@ -532,3 +532,13 @@ void func_020_4B4A_trampoline(GBState *gb, void (*func_020_4B4A)(GBState *)) {
     }
     ReloadSavedBank(gb);
 }
+
+void func_020_4AB3_trampoline(GBState *gb, void (*func_020_4AB3)(GBState *)) {
+    if (!gb) return;
+
+    gb_write(gb, rSelectROMBank, 0x20);
+    if (func_020_4AB3) {
+        func_020_4AB3(gb);
+    }
+    ReloadSavedBank(gb);
+}
