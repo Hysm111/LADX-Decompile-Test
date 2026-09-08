@@ -2698,3 +2698,513 @@ void label_002_5425(GBState *gb, uint16_t (*spawn_new_entity)(GBState *, uint8_t
 
     gb_write(gb, (uint16_t)(wEntitiesPosZTable + slot), 0x70);
 }
+
+/* ================================================================
+ * Transcient Visual Effects (VFX) renderer subsystem (02:5487-02:5925)
+ * ================================================================ */
+
+const uint8_t DebugWarpRooms[11] = {
+    0x30, 0x33, 0x81, 0x01, 0x28, 0x56, 0x68, 0x87, 0xB3, 0xE6, 0x0A
+};
+
+const uint8_t DebugWarpMaps[11] = {
+    MAP_BOTTLE_GROTTO, MAP_BOTTLE_GROTTO, MAP_CATFISHS_MAW, MAP_TAIL_CAVE,
+    MAP_BOTTLE_GROTTO, MAP_KEY_CAVERN, MAP_ANGLERS_TUNNEL, MAP_CATFISHS_MAW,
+    MAP_FACE_SHRINE, MAP_EAGLES_TOWER, MAP_TURTLE_ROCK
+};
+
+const uint8_t Data_002_559C[32] = {
+    0x00, 0x00, 0x08, 0x20, 0x00, 0x08, 0x06, 0x20,
+    0x00, 0x00, 0x06, 0x00, 0x00, 0x08, 0x08, 0x00,
+    0x00, 0x04, 0x04, 0x40, 0x00, 0x04, 0x04, 0x40,
+    0x00, 0x04, 0x04, 0x00, 0x00, 0x04, 0x04, 0x00
+};
+
+const uint8_t Data_002_55BC[32] = {
+    0x00, 0x00, 0x08, 0x30, 0x00, 0x08, 0x06, 0x30,
+    0x00, 0x00, 0x06, 0x10, 0x00, 0x08, 0x08, 0x10,
+    0x00, 0x04, 0x04, 0x50, 0x00, 0x04, 0x04, 0x50,
+    0x00, 0x04, 0x04, 0x10, 0x00, 0x04, 0x04, 0x10
+};
+
+const int8_t Data_002_5600[3] = { -0x08, 0x00, 0x08 };
+const uint8_t Data_002_5603[4] = { 0x10, 0x6C, 0x6E, 0x6E };
+const uint8_t Data_002_5607[5] = { 0x6C, 0x00, 0x00, 0x20, 0x20 };
+
+const uint8_t Data_002_5642[4] = { 0x7E, 0x1F, 0x0C, 0x1F };
+
+const uint8_t Data_002_5708[16] = {
+    0x00, 0x04, 0x24, 0x01, 0x00, 0x04, 0x24, 0x01,
+    0x00, 0x00, 0x1E, 0x01, 0x00, 0x08, 0x1E, 0x61
+};
+
+const uint8_t Data_002_5736[16] = {
+    0x00, 0x00, 0x1E, 0x01, 0x00, 0x08, 0x1E, 0x61,
+    0x00, 0x00, 0x30, 0x01, 0x00, 0x08, 0x30, 0x61
+};
+
+const int8_t Data_002_5756[4] = { 0x01, -0x01, 0x01, -0x01 };
+const int8_t Data_002_575A[4] = { 0x01, 0x01, -0x01, -0x01 };
+
+const uint8_t Data_002_57DD[16] = {
+    0x00, 0xFF, 0x3C, 0x00, 0x00, 0x07, 0x3C, 0x20,
+    0x00, 0xFF, 0x3A, 0x00, 0x00, 0x07, 0x3A, 0x20
+};
+
+const uint8_t Data_002_57FD[16] = {
+    0xF6, 0xFE, 0x18, 0x00, 0xF8, 0x0A, 0x18, 0x20,
+    0xFC, 0x00, 0x18, 0x00, 0xFE, 0x08, 0x18, 0x20
+};
+
+const uint8_t Data_002_580D[16] = {
+    0x00, 0xFA, 0x18, 0x00, 0x00, 0x0E, 0x18, 0x20,
+    0x02, 0xFC, 0x18, 0x00, 0x02, 0x0C, 0x18, 0x20
+};
+
+const uint8_t Data_002_5867[16] = {
+    0x00, 0x00, 0x7A, 0x00, 0x00, 0x08, 0x7A, 0x20,
+    0x00, 0x00, 0x78, 0x00, 0x00, 0x08, 0x78, 0x20
+};
+
+const uint8_t Data_002_5884[32] = {
+    0x00, 0x00, 0x32, 0x01, 0x00, 0x08, 0x32, 0x21,
+    0x00, 0x00, 0x32, 0x01, 0x00, 0x08, 0x32, 0x21,
+    0x00, 0x00, 0x30, 0x01, 0x00, 0x08, 0x30, 0x21,
+    0x00, 0x00, 0x30, 0x01, 0x00, 0x08, 0x30, 0x21
+};
+
+const uint8_t Data_002_58ED[8] = { 0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38 };
+
+static void label_002_58F5(GBState *gb, uint8_t sprites);
+
+/* Removes a transcient vfx from the effects table. (02:58E6) */
+void ClearTranscientVfx(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+    gb_write(gb, (uint16_t)(wTranscientVfxTypeTable + slot), 0);
+}
+
+/* Loads the VFX coordinates into hMultiPurpose1/2, clearing it if it went
+ * off-screen (Y >= $88 or X >= $A8). (02:58D0) */
+void func_002_58D0(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    uint8_t y = gb_read(gb, (uint16_t)(wTranscientVfxPosYTable + slot));
+    gb_write_hram(gb, hMultiPurpose1, y);
+    if (y >= 0x88) {
+        ClearTranscientVfx(gb, slot);
+        return;
+    }
+
+    uint8_t x = gb_read(gb, (uint16_t)(wTranscientVfxPosXTable + slot));
+    gb_write_hram(gb, hMultiPurpose2, x);
+    if (x >= 0xA8) {
+        ClearTranscientVfx(gb, slot);
+    }
+}
+
+/* Writes a 4-byte OAM entry: {mp1+Y, mp2+X, tile, flags} using the 4-byte
+ * table at `hl`. (02:5854) */
+static void WriteOAMSprite(GBState *gb, uint16_t de, const uint8_t *data) {
+    if (!gb) return;
+    gb_write(gb, de, (uint8_t)(gb_read_hram(gb, hMultiPurpose1) + (int8_t)data[0]));
+    gb_write(gb, (uint16_t)(de + 1), (uint8_t)(gb_read_hram(gb, hMultiPurpose2) + (int8_t)data[1]));
+    gb_write(gb, (uint16_t)(de + 2), data[2]);
+    gb_write(gb, (uint16_t)(de + 3), data[3]);
+}
+
+/* Writes two 4-byte OAM entries from `data + offset` into the dynamic OAM
+ * buffer and advances the OAM slot counter. (02:583A) */
+static void RenderTwoOAMSpriteVFX(GBState *gb, const uint8_t *data, uint8_t offset) {
+    if (!gb) return;
+
+    uint16_t de = (uint16_t)(wDynamicOAMBuffer + gb_read(gb, wOAMNextAvailableSlot));
+    WriteOAMSprite(gb, de, data + offset);
+    WriteOAMSprite(gb, (uint16_t)(de + 4), data + offset + 4);
+    label_002_58F5(gb, 2);
+}
+
+/* Advances the OAM slot counters by `sprites` OAM entries, recovering the slot
+ * index when the dynamic buffer overflows. (02:58F5) */
+static void label_002_58F5(GBState *gb, uint8_t sprites) {
+    if (!gb) return;
+
+    uint8_t e = (uint8_t)(sprites * 4);
+    uint8_t slot = (uint8_t)(gb_read(gb, wOAMNextAvailableSlot) + e);
+    if (slot >= 0x60) {
+        slot = (uint8_t)(slot - 0x60);
+    }
+    gb_write(gb, wOAMNextAvailableSlot, slot);
+
+    uint8_t c3c1 = (uint8_t)(gb_read(gb, wC3C1) + e);
+    gb_write(gb, wC3C1, c3c1);
+    if (c3c1 >= 0x60) {
+        uint8_t idx = (uint8_t)((gb_read_hram(gb, hFrameCounter) + gb_read(gb, wActiveEntityIndex)) & 0x07);
+        gb_write(gb, wOAMNextAvailableSlot, Data_002_58ED[idx]);
+    }
+}
+
+/* Render the CGB water-splash sprites from Data_002_5867, offset by the
+ * countdown half-frame. (02:5877) */
+static void RenderTranscientWaterSplashCGB(GBState *gb) {
+    if (!gb) return;
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    RenderTwoOAMSpriteVFX(gb, Data_002_5867, offset);
+}
+
+void RenderTranscientWaterSplash(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+    if (gb_read(gb, wC1A7) == 0x02) {
+        RenderTranscientWaterSplashCGB(gb);
+        return;
+    }
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    RenderTwoOAMSpriteVFX(gb, Data_002_57FD, offset);
+}
+
+void RenderTranscientPegasusSplash(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    RenderTwoOAMSpriteVFX(gb, Data_002_580D, offset);
+}
+
+void RenderTranscientPegasusDust(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    if (gb_read(gb, wIsRunningWithPegasusBoots) != 0) {
+        RenderTwoOAMSpriteVFX(gb, Data_002_5708, offset);
+        return;
+    }
+    WriteOAMSprite(gb, wOAMBuffer, Data_002_5708 + offset);
+    WriteOAMSprite(gb, (uint16_t)(wOAMBuffer + 4), Data_002_5708 + offset + 4);
+}
+
+void RenderTranscientSmoke(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    RenderTwoOAMSpriteVFX(gb, Data_002_5736, offset);
+}
+
+void RenderTranscientSwordPoke(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+    uint8_t offset = gb_read_hram(gb, hMultiPurpose0) & 0x08;
+    RenderTwoOAMSpriteVFX(gb, Data_002_57DD, offset);
+}
+
+void RenderTranscientLaserBeam(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+
+    uint16_t de = (uint16_t)(wDynamicOAMBuffer + gb_read(gb, wOAMNextAvailableSlot));
+    gb_write(gb, de, gb_read_hram(gb, hMultiPurpose1));
+    gb_write(gb, (uint16_t)(de + 1), gb_read_hram(gb, hMultiPurpose2));
+    gb_write(gb, (uint16_t)(de + 2), 0x24);
+    gb_write(gb, (uint16_t)(de + 3), (uint8_t)(((gb_read_hram(gb, hFrameCounter) ^ slot) & 0x01) << 4));
+    label_002_58F5(gb, 1);
+}
+
+void RenderTranscientSwordBeam(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    if (((gb_read_hram(gb, hFrameCounter) ^ slot) & 0x01) == 0) {
+        return;
+    }
+
+    func_002_58D0(gb, slot);
+    uint8_t e = (uint8_t)(gb_read(gb, (uint16_t)(wC590 + slot)) << 3) & 0xF8;
+    const uint8_t *data = ((gb_read_hram(gb, hFrameCounter) & 0x02) != 0) ? Data_002_55BC : Data_002_559C;
+    RenderTwoOAMSpriteVFX(gb, data, e);
+}
+
+void RenderTranscientLavaSplash(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+
+    static const int8_t x_offsets[4] = { 0x10, 0x08, 0x00, -0x08 };
+    static const uint8_t tiles[4] = { 0x6C, 0x6E, 0x6E, 0x6C };
+    static const uint8_t attrs[4] = { 0x20, 0x20, 0x00, 0x00 };
+
+    uint16_t de = (uint16_t)(wDynamicOAMBuffer + gb_read(gb, wOAMNextAvailableSlot));
+    for (uint8_t i = 0; i < 4; i++) {
+        gb_write(gb, de, gb_read_hram(gb, hMultiPurpose1));
+        gb_write(gb, (uint16_t)(de + 1), (uint8_t)(gb_read_hram(gb, hMultiPurpose2) + x_offsets[i]));
+        gb_write(gb, (uint16_t)(de + 2), tiles[i]);
+        gb_write(gb, (uint16_t)(de + 3), attrs[i]);
+        de = (uint16_t)(de + 4);
+    }
+    label_002_58F5(gb, 4);
+}
+
+/* Composes the rumble rock tiles into the draw command buffer. (02:568C) */
+static void RenderTranscientRumbleRock(GBState *gb, uint8_t slot, uint8_t mp0) {
+    if ((mp0 & 0x0F) != 0x08) {
+        return;
+    }
+
+    uint8_t e = (mp0 & 0x10) ? 0x02 : 0x00;
+    gb_write_hram(gb, hMultiPurpose0, Data_002_5642[e]);
+    gb_write_hram(gb, hMultiPurpose1, Data_002_5642[e + 1]);
+
+    gb_write_hram(gb, hIntersectedObjectLeft, 0x60);
+    gb_write_hram(gb, hIntersectedObjectTop, 0x10);
+    GetIntersectedObjectBGAddress(gb);
+
+    uint8_t bg_high = gb_read_hram(gb, hIntersectedObjectBGAddressHigh);
+    uint8_t bg_low = gb_read_hram(gb, hIntersectedObjectBGAddressLow);
+
+    uint16_t hl = (uint16_t)(wDrawCommand + gb_read(gb, wDrawCommandsSize));
+    gb_write(gb, hl++, bg_high);
+    gb_write(gb, hl++, bg_low);
+    gb_write(gb, hl++, 0x41);
+    gb_write(gb, hl++, gb_read_hram(gb, hMultiPurpose0));
+    gb_write(gb, hl++, bg_high);
+    gb_write(gb, hl++, (uint8_t)(bg_low + 0x20));
+    gb_write(gb, hl++, 0x41);
+    gb_write(gb, hl++, gb_read_hram(gb, hMultiPurpose1));
+    gb_write(gb, hl, 0);
+
+    gb_write(gb, wDrawCommandsSize, (uint8_t)(gb_read(gb, wDrawCommandsSize) + 8));
+
+    if (gb_read(gb, (uint16_t)(wTranscientVfxCountdownTable + slot)) == 0x08) {
+        gb_write(gb, (uint16_t)(wRoomObjectsArea + 0x27), 0xE3);
+        BackupObjectInRAM2(gb, (uint16_t)(wRoomObjectsArea + 0x27), 0x82);
+        gb_write_hram(gb, hJingle, JINGLE_DUNGEON_OPENED);
+    }
+}
+
+void RenderTranscientRumble(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    gb_write_hram(gb, hLinkInteractiveMotionBlocked, 0x02);
+    gb_write(gb, wC167, 0x02);
+    gb_write(gb, wScreenShakeHorizontal, 0);
+
+    uint8_t mp0 = gb_read_hram(gb, hMultiPurpose0);
+    if (mp0 < 0x02) {
+        gb_write(gb, wC167, 0);
+    }
+    if (mp0 == 0xDE) {
+        EnqueueDoorUnlockedSfx(gb);
+    }
+    if (mp0 == 0xA0) {
+        gb_write_hram(gb, hNoiseSfx, NOISE_SFX_OPEN_KEY_CAVERN);
+    }
+    if (mp0 == 0x0A) {
+        gb_write(gb, wNextWorldMusicTrackCountdown, 0x50);
+    }
+
+    if (mp0 < 0x20) {
+        RenderTranscientRumbleRock(gb, slot, mp0);
+        return;
+    }
+    if (mp0 >= 0x9C) {
+        return;
+    }
+
+    gb_write(gb, wScreenShakeHorizontal, (mp0 & 0x04) ? 0xFE : 0x01);
+}
+
+void RenderTranscientMovingSparkle(GBState *gb, uint8_t slot) {
+    if (!gb) return;
+
+    if (gb_read_hram(gb, hMultiPurpose0) >= 0x0A) {
+        uint8_t e = gb_read(gb, (uint16_t)(wC590 + slot));
+        uint16_t pos_x = (uint16_t)(wTranscientVfxPosXTable + slot);
+        gb_write(gb, pos_x, (uint8_t)(gb_read(gb, pos_x) + Data_002_5756[e]));
+        uint16_t pos_y = (uint16_t)(wTranscientVfxPosYTable + slot);
+        gb_write(gb, pos_y, (uint8_t)(gb_read(gb, pos_y) + Data_002_575A[e]));
+    }
+
+    func_002_58D0(gb, slot);
+
+    uint8_t tile = (gb_read_hram(gb, hMultiPurpose0) >= 0x07) ? 0x3A : 0x3C;
+    uint8_t y = gb_read_hram(gb, hMultiPurpose1);
+    uint8_t x = gb_read_hram(gb, hMultiPurpose2);
+
+    uint16_t de = (uint16_t)(wDynamicOAMBuffer + gb_read(gb, wOAMNextAvailableSlot));
+    gb_write(gb, de, y);
+    gb_write(gb, (uint16_t)(de + 1), x);
+    gb_write(gb, (uint16_t)(de + 2), tile);
+    gb_write(gb, (uint16_t)(de + 3), 0x00);
+    gb_write(gb, (uint16_t)(de + 4), y);
+    gb_write(gb, (uint16_t)(de + 5), (uint8_t)(x + 0x08));
+    gb_write(gb, (uint16_t)(de + 6), tile);
+    gb_write(gb, (uint16_t)(de + 7), 0x20);
+    label_002_58F5(gb, 2);
+}
+
+void RenderTranscientPoof(GBState *gb, uint8_t slot,
+                          void (*reveal_chest)(GBState *),
+                          void (*reveal_staircase)(GBState *)) {
+    if (!gb) return;
+
+    func_002_58D0(gb, slot);
+
+    uint8_t mp0 = gb_read_hram(gb, hMultiPurpose0);
+    if (mp0 == 0x04) {
+        uint8_t type = gb_read(gb, (uint16_t)(wTranscientVfxTypeTable + slot));
+        if (type == TRANSCIENT_VFX_CHEST_APPEARS) {
+            if (reveal_chest) reveal_chest(gb);
+        } else {
+            if (reveal_staircase) reveal_staircase(gb);
+        }
+    }
+
+    uint8_t offset = (uint8_t)(mp0 << 1) & 0x18;
+    RenderTwoOAMSpriteVFX(gb, Data_002_5884, offset);
+}
+
+/* Renders a transcient visual effect at slot `slot`. (02:5567) */
+void RenderTranscientVfx(GBState *gb, uint8_t slot,
+                         void (*reveal_chest)(GBState *),
+                         void (*reveal_staircase)(GBState *)) {
+    if (!gb) return;
+
+    uint8_t vfx_type = gb_read(gb, (uint16_t)(wTranscientVfxTypeTable + slot));
+
+    if (gb_read(gb, wRoomTransitionState) != 0) {
+        ClearTranscientVfx(gb, slot);
+    } else {
+        uint8_t countdown = gb_read(gb, (uint16_t)(wTranscientVfxCountdownTable + slot));
+        if (countdown != 0) {
+            countdown = (uint8_t)(countdown - 1);
+            gb_write(gb, (uint16_t)(wTranscientVfxCountdownTable + slot), countdown);
+            gb_write_hram(gb, hMultiPurpose0, countdown);
+            if (countdown == 0) {
+                ClearTranscientVfx(gb, slot);
+            }
+        }
+    }
+
+    switch (vfx_type) {
+        case TRANSCIENT_VFX_WATER_SPLASH:
+            RenderTranscientWaterSplash(gb, slot);
+            break;
+        case TRANSCIENT_VFX_POOF:
+        case TRANSCIENT_VFX_CHEST_APPEARS:
+        case TRANSCIENT_VFX_STAIRS_APPEARS:
+            RenderTranscientPoof(gb, slot, reveal_chest, reveal_staircase);
+            break;
+        case TRANSCIENT_VFX_SWORD_POKE:
+            RenderTranscientSwordPoke(gb, slot);
+            break;
+        case TRANSCIENT_VFX_LASER_BEAM:
+            RenderTranscientLaserBeam(gb, slot);
+            break;
+        case TRANSCIENT_VFX_MOVING_SPARKLE:
+            RenderTranscientMovingSparkle(gb, slot);
+            break;
+        case TRANSCIENT_VFX_SMOKE:
+            RenderTranscientSmoke(gb, slot);
+            break;
+        case TRANSCIENT_VFX_RUMBLE:
+            RenderTranscientRumble(gb, slot);
+            break;
+        case TRANSCIENT_VFX_LAVA_SPLASH:
+            RenderTranscientLavaSplash(gb, slot);
+            break;
+        case TRANSCIENT_VFX_PEGASUS_DUST:
+            RenderTranscientPegasusDust(gb, slot);
+            break;
+        case TRANSCIENT_VFX_PEGASUS_SPLASH:
+            RenderTranscientPegasusSplash(gb, slot);
+            break;
+        case TRANSCIENT_VFX_SWORD_BEAM:
+            RenderTranscientSwordBeam(gb, slot);
+            break;
+        default:
+            break;
+    }
+}
+
+/* Triggers the staircase warp when the player stands on the active staircase.
+ * (02:552A) */
+static void ActivateStaircaseIfOnIt(GBState *gb) {
+    if (gb_read_hram(gb, hLinkPositionZ) != 0) return;
+    if ((uint8_t)(gb_read_hram(gb, hLinkPositionX) - gb_read_hram(gb, hStaircasePosX) + 0x05) >= 0x0A) return;
+    if ((uint8_t)(gb_read_hram(gb, hLinkPositionY) - gb_read_hram(gb, hStaircasePosY) + 0x05) >= 0x0A) return;
+
+    if (gb_read(gb, wIsCarryingLiftedObject) != 0) return;
+
+    if (gb_read_hram(gb, hMapRoom) == ROOM_OW_COLOR_DUNGEON_ENTRANCE &&
+        gb_read(gb, wIsIndoor) == 0 &&
+        gb_read(gb, wColorDungonCorrectTombStones) != 0x80) {
+        return;
+    }
+
+    ApplyMapFadeOutTransitionWithSound(gb);
+    gb_write_hram(gb, hStaircase, 0);
+}
+
+/* Renders every active transcient vfx, then updates the staircase state.
+ * (02:54E4) */
+static void RenderTranscientVFXs(GBState *gb,
+                                 void (*reveal_chest)(GBState *),
+                                 void (*reveal_staircase)(GBState *)) {
+    for (uint8_t slot = 15; slot != 0xFF; slot = (uint8_t)(slot - 1)) {
+        gb_write(gb, wActiveEntityIndex, slot);
+        if (gb_read(gb, (uint16_t)(wTranscientVfxTypeTable + slot)) != 0) {
+            RenderTranscientVfx(gb, slot, reveal_chest, reveal_staircase);
+        }
+    }
+
+    if (gb_read(gb, wRoomTransitionState) != 0) return;
+
+    uint8_t staircase = gb_read_hram(gb, hStaircase);
+    if (staircase == 0) return;
+
+    if (staircase != STAIRCASE_INACTIVE) {
+        ActivateStaircaseIfOnIt(gb);
+        return;
+    }
+
+    /* If the player left an inactive staircase, mark it as active. */
+    if ((uint8_t)(gb_read_hram(gb, hLinkPositionX) - gb_read_hram(gb, hStaircasePosX) + 0x06) >= 0x0C) {
+        gb_write_hram(gb, hStaircase, STAIRCASE_ACTIVE);
+        return;
+    }
+    if ((uint8_t)(gb_read_hram(gb, hLinkPositionY) - gb_read_hram(gb, hStaircasePosY) + 0x06) >= 0x0C) {
+        gb_write_hram(gb, hStaircase, STAIRCASE_ACTIVE);
+    }
+}
+
+/* Per-frame render of transcient vfx, room statuses and cooldowns. (02:5487)
+ *
+ * Note (POI 02:54A8): the original ROM contains a B+SELECT debug-warp tool,
+ * but the branch into it is unconditional (`jr renderTranscientVFXs`), leaving
+ * it as dead code.  It is therefore not reproduced here. */
+void label_002_5487(GBState *gb,
+                    void (*reveal_chest)(GBState *),
+                    void (*reveal_staircase)(GBState *)) {
+    if (!gb) return;
+
+    gb_write(gb, wIndoorARoomStatus, 0);
+    gb_write(gb, wIndoorBRoomStatus, 0);
+
+    if (gb_read(gb, wDialogCooldown) != 0) {
+        gb_write(gb, wDialogCooldown, (uint8_t)(gb_read(gb, wDialogCooldown) - 1));
+    }
+    if (gb_read(gb, wPhotoAlbumCooldown) != 0) {
+        gb_write(gb, wPhotoAlbumCooldown, (uint8_t)(gb_read(gb, wPhotoAlbumCooldown) - 1));
+    }
+
+    RenderTranscientVFXs(gb, reveal_chest, reveal_staircase);
+}
+
+/* Spawns a water-splash vfx at Link's position with the water-splash jingle.
+ * (02:5926) */
+void func_002_5926(GBState *gb) {
+    if (!gb) return;
+    func_002_5928(gb, gb_read_hram(gb, hLinkPositionY));
+}

@@ -493,4 +493,172 @@ void EnqueueDoorUnlockedSfx(GBState *gb);
  */
 void label_002_5425(GBState *gb, uint16_t (*spawn_new_entity)(GBState *, uint8_t));
 
+/* ---------------------------------------------------------------------------
+ * Transcient Visual Effects (VFX) renderer subsystem (02:5487-02:5925)
+ * ------------------------------------------------------------------------- */
+
+extern const uint8_t DebugWarpRooms[11];
+extern const uint8_t DebugWarpMaps[11];
+extern const uint8_t Data_002_559C[32];
+extern const uint8_t Data_002_55BC[32];
+extern const int8_t Data_002_5600[3];
+extern const uint8_t Data_002_5603[4];
+extern const uint8_t Data_002_5607[5];
+extern const uint8_t Data_002_5642[4];
+extern const uint8_t Data_002_5708[16];
+extern const uint8_t Data_002_5736[16];
+extern const int8_t Data_002_5756[4];
+extern const int8_t Data_002_575A[4];
+extern const uint8_t Data_002_57DD[16];
+extern const uint8_t Data_002_57FD[16];
+extern const uint8_t Data_002_580D[16];
+extern const uint8_t Data_002_5867[16];
+extern const uint8_t Data_002_5884[32];
+extern const uint8_t Data_002_58ED[8];
+
+/**
+ * Per-frame rendering of transcient vfx, room statuses and cooldowns.
+ * (02:5487)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param reveal_chest Optional callback to reveal an item chest (02:5ED3).
+ * @param reveal_staircase Optional callback to reveal a staircase (02:5F5C).
+ */
+void label_002_5487(GBState *gb,
+                    void (*reveal_chest)(GBState *),
+                    void (*reveal_staircase)(GBState *));
+
+/**
+ * Renders a transcient visual effect at the given slot, decrementing its
+ * countdown and clearing it when it expires. (02:5567)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ * @param reveal_chest Optional callback to reveal an item chest (02:5ED3).
+ * @param reveal_staircase Optional callback to reveal a staircase (02:5F5C).
+ */
+void RenderTranscientVfx(GBState *gb, uint8_t slot,
+                         void (*reveal_chest)(GBState *),
+                         void (*reveal_staircase)(GBState *));
+
+/**
+ * Renders the sword beam vfx using alternating animation frames. (02:55DC)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientSwordBeam(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the four-sprite lava splash vfx. (02:560C)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientLavaSplash(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the rumble vfx, shaking the screen and (during a dungeon reveal)
+ * composing rock tiles into the draw-command buffer. (02:5646)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientRumble(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the Pegasus boots dust vfx. (02:5718)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientPegasusDust(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the smoke poof vfx. (02:5746)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientSmoke(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the moving sparkle vfx (unlit room sparkle), drifting its position
+ * from the wC590 offset table. (02:575E)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientMovingSparkle(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the laser beam vfx. (02:57B4)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientLaserBeam(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the sword-poking vfx used when poking a wall with the sword. (02:57ED)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientSwordPoke(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the Pegasus boots splash vfx. (02:581D)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientPegasusSplash(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the water splash vfx. (02:5825)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void RenderTranscientWaterSplash(GBState *gb, uint8_t slot);
+
+/**
+ * Renders the poof vfx, revealing a chest or staircase at its final frame.
+ * (02:58A4)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ * @param reveal_chest Optional callback to reveal an item chest (02:5ED3).
+ * @param reveal_staircase Optional callback to reveal a staircase (02:5F5C).
+ */
+void RenderTranscientPoof(GBState *gb, uint8_t slot,
+                          void (*reveal_chest)(GBState *),
+                          void (*reveal_staircase)(GBState *));
+
+/**
+ * Loads the VFX coordinates into hMultiPurpose1/2, clearing the effect when it
+ * moves off-screen. (02:58D0)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void func_002_58D0(GBState *gb, uint8_t slot);
+
+/**
+ * Removes a transcient vfx from the effects table. (02:58E6)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param slot VFX slot index.
+ */
+void ClearTranscientVfx(GBState *gb, uint8_t slot);
+
+/**
+ * Spawns a water-splash vfx at Link's position with the water-splash jingle.
+ * (02:5926)
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void func_002_5926(GBState *gb);
+
 #endif /* LADX_BANK2_BANK2_H */

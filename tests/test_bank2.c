@@ -124,6 +124,16 @@ static void mock_sync_dungeon_item_flags(GBState *gb) {
     (void)gb;
     g_mock_sync_calls++;
 }
+static int g_mock_reveal_chest_calls = 0;
+static void mock_reveal_chest(GBState *gb) {
+    (void)gb;
+    g_mock_reveal_chest_calls++;
+}
+static int g_mock_reveal_staircase_calls = 0;
+static void mock_reveal_staircase(GBState *gb) {
+    (void)gb;
+    g_mock_reveal_staircase_calls++;
+}
 
 void run_bank2_tests(void) {
     printf("[*] Running Bank 2 unit tests...\n");
@@ -2088,6 +2098,395 @@ void run_bank2_tests(void) {
         label_002_5425(&gb, mock_spawn_entity);
         assert(gb_read(&gb, (uint16_t)(wEntitiesPosXTable + 15)) == 0x58);
         assert(gb_read(&gb, (uint16_t)(wEntitiesPosYTable + 15)) == 0x3C);
+    }
+
+    /* Test 58: RenderTranscientLavaSplash - four sprites in c=4..1 order */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hFrameCounter, 0);
+        gb_write_hram(&gb, hMultiPurpose0, 8);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 4), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 4), 0x58);
+
+        RenderTranscientLavaSplash(&gb, 4);
+
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == 0x10);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 0)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 1)) == 0x68);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x6C);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 5)) == 0x60);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x6E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 9)) == 0x58);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 10)) == 0x6E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 11)) == 0x00);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 13)) == 0x50);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 14)) == 0x6C);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 15)) == 0x00);
+    }
+
+    /* Test 59: RenderTranscientLaserBeam - single sprite, alternating flags */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hFrameCounter, 0);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 7), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 7), 0x58);
+
+        RenderTranscientLaserBeam(&gb, 7);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 0)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 1)) == 0x58);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x24);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x10);
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == 0x04);
+
+        /* Even parity -> horizontal mirror flip cleared */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write_hram(&gb, hFrameCounter, 1);
+        RenderTranscientLaserBeam(&gb, 7);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x00);
+    }
+
+    /* Test 60: RenderTranscientSwordBeam - frame parity gate & table select */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hFrameCounter, 1);
+        gb_write_hram(&gb, hMultiPurpose1, 0xAB); /* sentinel */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 1), 0x22);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 1), 0x44);
+        gb_write(&gb, (uint16_t)(wC590 + 1), 0);
+
+        /* (frame ^ slot) even -> early return, hMultiPurpose1 untouched */
+        RenderTranscientSwordBeam(&gb, 1);
+        assert(gb_read_hram(&gb, hMultiPurpose1) == 0xAB);
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == 0);
+
+        /* fc=0 (frame bit 1 clear), slot=1 -> render from Data_002_559C */
+        gb_write_hram(&gb, hFrameCounter, 0);
+        gb_write_hram(&gb, hMultiPurpose0, 0xFF); /* sentinel, mp0 untouched */
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 1), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 1), 0x40);
+        gb_write(&gb, (uint16_t)(wC590 + 1), 0);
+        RenderTranscientSwordBeam(&gb, 1);
+        assert(gb_read_hram(&gb, hMultiPurpose0) == 0xFF);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x08);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 5)) == 0x48);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x06);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x20);
+
+        /* fc=2 (frame bit 1 set), slot=3, wC590[3]=1 -> Data_002_55BC, offset 8 */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write_hram(&gb, hFrameCounter, 2);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 3), 0x30);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 3), 0x50);
+        gb_write(&gb, (uint16_t)(wC590 + 3), 1);
+        RenderTranscientSwordBeam(&gb, 3);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x06);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x10);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x08);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x10);
+    }
+
+    /* Test 61: RenderTranscientRumble - sfx triggers and rock tile draw command */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMultiPurpose0, 0xDE);
+        gb_write_hram(&gb, hBaseScrollX, 0);
+        gb_write_hram(&gb, hBaseScrollY, 0);
+
+        RenderTranscientRumble(&gb, 0);
+        assert(gb_read_hram(&gb, hLinkInteractiveMotionBlocked) == 0x02);
+        assert(gb_read(&gb, wC167) == 0x02);
+        assert(gb_read_hram(&gb, hNoiseSfx) == NOISE_SFX_DOOR_UNLOCKED);
+        /* 0xDE >= 0x9C -> no screen shake */
+        assert(gb_read(&gb, wScreenShakeHorizontal) == 0);
+
+        /* 0x0A < 0x20 -> jr_002_568C path, sets music intro timer */
+        gb_write_hram(&gb, hMultiPurpose0, 0x0A);
+        RenderTranscientRumble(&gb, 0);
+        assert(gb_read(&gb, wNextWorldMusicTrackCountdown) == 0x50);
+
+        /* 0xA0 >= 0x9C, but sets the open-key-cavern noise */
+        gb_write_hram(&gb, hMultiPurpose0, 0xA0);
+        RenderTranscientRumble(&gb, 0);
+        assert(gb_read_hram(&gb, hNoiseSfx) == NOISE_SFX_OPEN_KEY_CAVERN);
+
+        /* 0x20 <= 0x4C < 0x9C -> screen shake (bit 2 set -> -2) */
+        gb_write_hram(&gb, hMultiPurpose0, 0x4C);
+        RenderTranscientRumble(&gb, 0);
+        assert(gb_read(&gb, wScreenShakeHorizontal) == 0xFE);
+        gb_write_hram(&gb, hMultiPurpose0, 0x48);
+        RenderTranscientRumble(&gb, 0);
+        assert(gb_read(&gb, wScreenShakeHorizontal) == 0x01);
+
+        /* (mp0 & 0x0F) == 0x08 -> compose rock tiles in draw command buffer */
+        gb_write_hram(&gb, hMultiPurpose0, 0x08);
+        gb_write(&gb, wTranscientVfxCountdownTable, 0x08);
+        RenderTranscientRumble(&gb, 0);
+
+        uint8_t bg_high = gb_read_hram(&gb, hIntersectedObjectBGAddressHigh);
+        uint8_t bg_low = gb_read_hram(&gb, hIntersectedObjectBGAddressLow);
+        assert(gb_read(&gb, wDrawCommandsSize) == 0x08);
+        assert(gb_read(&gb, wDrawCommand + 0) == bg_high);
+        assert(gb_read(&gb, wDrawCommand + 1) == bg_low);
+        assert(gb_read(&gb, wDrawCommand + 2) == 0x41);
+        assert(gb_read(&gb, wDrawCommand + 3) == 0x7E);
+        assert(gb_read(&gb, wDrawCommand + 4) == bg_high);
+        assert(gb_read(&gb, wDrawCommand + 5) == (uint8_t)(bg_low + 0x20));
+        assert(gb_read(&gb, wDrawCommand + 6) == 0x41);
+        assert(gb_read(&gb, wDrawCommand + 7) == 0x1F);
+        assert(gb_read(&gb, wDrawCommand + 8) == 0);
+        assert(gb_read(&gb, (uint16_t)(wRoomObjectsArea + 0x27)) == 0xE3);
+        assert(gb_read_hram(&gb, hJingle) == JINGLE_DUNGEON_OPENED);
+    }
+
+    /* Test 62: RenderTranscientPoof - chest/staircase reveals & animation */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 2), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 2), 0x30);
+
+        /* mp0 == 4, type == CHEST_APPEARS -> reveal_chest only */
+        gb_write_hram(&gb, hMultiPurpose0, 4);
+        gb_write(&gb, (uint16_t)(wTranscientVfxTypeTable + 2), TRANSCIENT_VFX_CHEST_APPEARS);
+        g_mock_reveal_chest_calls = 0;
+        g_mock_reveal_staircase_calls = 0;
+        RenderTranscientPoof(&gb, 2, mock_reveal_chest, mock_reveal_staircase);
+        assert(g_mock_reveal_chest_calls == 1);
+        assert(g_mock_reveal_staircase_calls == 0);
+        /* offset (4<<1)&0x18 = 8 -> second animation frame */
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x32);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x01);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x32);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x21);
+
+        /* mp0 == 4, type != CHEST_APPEARS -> reveal_staircase only; type 8 -> frame 3 */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write_hram(&gb, hMultiPurpose0, 8);
+        gb_write(&gb, (uint16_t)(wTranscientVfxTypeTable + 2), TRANSCIENT_VFX_STAIRS_APPEARS);
+        g_mock_reveal_chest_calls = 0;
+        g_mock_reveal_staircase_calls = 0;
+        RenderTranscientPoof(&gb, 2, mock_reveal_chest, mock_reveal_staircase);
+        assert(g_mock_reveal_chest_calls == 0);
+        assert(g_mock_reveal_staircase_calls == 0);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x30);
+
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write_hram(&gb, hMultiPurpose0, 4);
+        RenderTranscientPoof(&gb, 2, mock_reveal_chest, mock_reveal_staircase);
+        assert(g_mock_reveal_chest_calls == 0);
+        assert(g_mock_reveal_staircase_calls == 1);
+    }
+
+    /* Test 63: RenderTranscientMovingSparkle - drift + tile size */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 5), 0x40);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 5), 0x50);
+        gb_write(&gb, (uint16_t)(wC590 + 5), 3);
+        gb_write_hram(&gb, hMultiPurpose0, 0x0F);
+
+        RenderTranscientMovingSparkle(&gb, 5);
+        /* drift by Data_002_5756[3]=-1 and Data_002_575A[3]=-1 */
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxPosXTable + 5)) == 0x4F);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxPosYTable + 5)) == 0x3F);
+        /* mp0 >= 7 -> tile 0x3A */
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x3A);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 5)) == 0x57);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x20);
+
+        /* mp0 < 7 -> tile 0x3C and no drift */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write_hram(&gb, hMultiPurpose0, 3);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 5), 0x50);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 5), 0x40);
+        RenderTranscientMovingSparkle(&gb, 5);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxPosXTable + 5)) == 0x50);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x3C);
+    }
+
+    /* Test 64: RenderTranscientVfx - countdown, cleanup and dispatch */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxTypeTable + 8), TRANSCIENT_VFX_SMOKE);
+        gb_write(&gb, (uint16_t)(wTranscientVfxCountdownTable + 8), 1);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 8), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 8), 0x30);
+
+        RenderTranscientVfx(&gb, 8, NULL, NULL);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxCountdownTable + 8)) == 0);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxTypeTable + 8)) == 0);
+        assert(gb_read_hram(&gb, hMultiPurpose0) == 0);
+        /* smoke still renders this frame (dispatched on the saved type) */
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x1E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x1E);
+
+        /* room transition forces an immediate clear, yet frame is still drawn */
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, wRoomTransitionState, 1);
+        gb_write(&gb, (uint16_t)(wTranscientVfxTypeTable + 8), TRANSCIENT_VFX_SMOKE);
+        gb_write(&gb, (uint16_t)(wTranscientVfxCountdownTable + 8), 9);
+        RenderTranscientVfx(&gb, 8, NULL, NULL);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxTypeTable + 8)) == 0);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxCountdownTable + 8)) == 9);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x61);
+    }
+
+    /* Test 65: label_002_5487 - cooldown/staircase handling + vfx loop */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wDialogCooldown, 2);
+        gb_write(&gb, wPhotoAlbumCooldown, 3);
+        gb_write(&gb, (uint16_t)(wTranscientVfxTypeTable + 15), TRANSCIENT_VFX_WATER_SPLASH);
+        gb_write(&gb, (uint16_t)(wTranscientVfxCountdownTable + 15), 0x0F);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 15), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 15), 0x30);
+        gb_write_hram(&gb, hStaircase, 0);
+
+        g_mock_reveal_chest_calls = 0;
+        g_mock_reveal_staircase_calls = 0;
+        label_002_5487(&gb, mock_reveal_chest, mock_reveal_staircase);
+
+        assert(gb_read(&gb, wDialogCooldown) == 1);
+        assert(gb_read(&gb, wPhotoAlbumCooldown) == 2);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxCountdownTable + 15)) == 0x0E);
+        assert(gb_read_hram(&gb, hMultiPurpose0) == 0x0E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x18);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 4)) == 0x1E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 6)) == 0x18);
+    }
+
+    /* Test 66: label_002_5487 - staircase activation & warp trigger */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hStaircasePosX, 0x20);
+        gb_write_hram(&gb, hStaircasePosY, 0x20);
+        gb_write_hram(&gb, hLinkPositionZ, 0);
+
+        /* Player standing on inactive staircase -> stays inactive */
+        gb_write_hram(&gb, hStaircase, STAIRCASE_INACTIVE);
+        gb_write_hram(&gb, hLinkPositionX, 0x20);
+        gb_write_hram(&gb, hLinkPositionY, 0x20);
+        label_002_5487(&gb, NULL, NULL);
+        assert(gb_read_hram(&gb, hStaircase) == STAIRCASE_INACTIVE);
+
+        /* Player far from staircase -> becomes active */
+        gb_write_hram(&gb, hLinkPositionX, 0x40);
+        label_002_5487(&gb, NULL, NULL);
+        assert(gb_read_hram(&gb, hStaircase) == STAIRCASE_ACTIVE);
+
+        /* Active staircase + player on it -> warp and reset */
+        gb_write_hram(&gb, hLinkPositionX, 0x20);
+        gb_write_hram(&gb, hLinkPositionY, 0x20);
+        gb_write_hram(&gb, hMapRoom, 0x01);
+        label_002_5487(&gb, NULL, NULL);
+        assert(gb_read_hram(&gb, hStaircase) == 0);
+        assert(gb_read_hram(&gb, hNoiseSfx) == NOISE_SFX_STAIRS);
+        assert(gb_read_hram(&gb, hMusicFadeOutTimer) == 0x30);
+
+        /* Active staircase but carrying an object -> no warp */
+        gb_write_hram(&gb, hStaircase, STAIRCASE_ACTIVE);
+        gb_write(&gb, wIsCarryingLiftedObject, 1);
+        gb_write_hram(&gb, hLinkPositionZ, 0);
+        label_002_5487(&gb, NULL, NULL);
+        assert(gb_read_hram(&gb, hStaircase) == STAIRCASE_ACTIVE);
+    }
+
+    /* Test 67: func_002_5926 spawns a water-splash vfx at Link's position */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hLinkPositionY, 0x2C);
+        gb_write_hram(&gb, hLinkPositionX, 0x48);
+
+        func_002_5926(&gb);
+
+        assert(gb_read_hram(&gb, hJingle) == JINGLE_WATER_SPLASH);
+        assert(gb_read_hram(&gb, hMultiPurpose0) == 0x48);
+        assert(gb_read_hram(&gb, hMultiPurpose1) == 0x2C);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxTypeTable + 15)) == TRANSCIENT_VFX_WATER_SPLASH);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxPosYTable + 15)) == 0x2C);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxPosXTable + 15)) == 0x48);
+        assert(gb_read(&gb, (uint16_t)(wTranscientVfxCountdownTable + 15)) == 0x0F);
+    }
+
+    /* Test 68: RenderTranscientWaterSplash - CGB sprite set */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 6), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 6), 0x30);
+        gb_write(&gb, wC1A7, 0x02);
+        gb_write_hram(&gb, hMultiPurpose0, 8);
+
+        RenderTranscientWaterSplash(&gb, 6);
+        /* offset (8 & 0x08) = 8 -> second frame of Data_002_5867 */
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x78);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 3)) == 0x00);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x20);
+    }
+
+    /* Test 69: RenderTranscientPegasusDust - boots OAM vs regular OAM buffer */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosYTable + 3), 0x20);
+        gb_write(&gb, (uint16_t)(wTranscientVfxPosXTable + 3), 0x30);
+        gb_write_hram(&gb, hMultiPurpose0, 0);
+        gb_write(&gb, wIsRunningWithPegasusBoots, 0);
+
+        RenderTranscientPegasusDust(&gb, 3);
+        /* frame 0: two 0x24 tiles at wOAMBuffer, X offset +4 */
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 0)) == 0x20);
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 1)) == 0x34);
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 2)) == 0x24);
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 5)) == 0x34);
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 6)) == 0x24);
+        assert(gb_read(&gb, (uint16_t)(wOAMBuffer + 7)) == 0x01);
+        /* wOAMNextAvailableSlot untouched on the non-boots path */
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == 0);
+
+        gb_write(&gb, wOAMNextAvailableSlot, 0);
+        gb_write(&gb, wIsRunningWithPegasusBoots, 1);
+        gb_write_hram(&gb, hMultiPurpose0, 8);
+        RenderTranscientPegasusDust(&gb, 3);
+        /* frame 2 via the dynamic OAM buffer, advancing the slot counter */
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 2)) == 0x1E);
+        assert(gb_read(&gb, (uint16_t)(wDynamicOAMBuffer + 7)) == 0x61);
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == 0x08);
+    }
+
+    /* Test 70: label_002_58F5 OAM slot recovery on overflow */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write(&gb, wOAMNextAvailableSlot, 0x58);
+        gb_write(&gb, wActiveEntityIndex, 0x02);
+        gb_write_hram(&gb, hFrameCounter, 0x03);
+        gb_write(&gb, wC3C1, 0x5C);
+
+        RenderTranscientSwordPoke(&gb, 0);
+        /* wC3C1 = 0x5C + 8 = 0x64 >= 0x60 -> slot recovered from Data_002_58ED */
+        assert(gb_read(&gb, wC3C1) == 0x64);
+        assert(gb_read(&gb, wOAMNextAvailableSlot) == Data_002_58ED[(0x03 + 0x02) & 0x07]);
     }
 
     printf("[+] Bank 2 unit tests passed successfully!\n");

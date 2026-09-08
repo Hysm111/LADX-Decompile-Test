@@ -15,6 +15,7 @@
 #define ROOM_OW_GIANT_SKULL          0x97
 #define ROOM_OW_SIREN                0xC9
 #define ROOM_OW_WALRUS               0xFD
+#define ROOM_OW_COLOR_DUNGEON_ENTRANCE 0x77
 #define ROOM_INDOOR_B_CAMERA_SHOP    0xB5
 #define ROOM_INDOOR_A_GORIYA         0xF5
 #define ROOM_INDOOR_A_WATER_FLOODED_GROTTO 0xF2

@@ -3,15 +3,15 @@
 ## Overall Status
 
 * **Project Name**: Zelda: Link's Awakening DX C/C++ Decompilation
-* **Current Overall Progress**: 56.00%
-* **Number of Verified Functions**: 687
-* **Number of Decompiled Functions**: 510
-* **Number Remaining**: ~529 functions
-* **Current Subsystem**: ROM Bank 2 (Magic Rod, Key Doors & Room Status, 02:52E0-02:5470, 02:5B9F)
-* **Current Task**: Bank 2 Magic Rod OAM, entity positioning, key door, room status handlers decompiled and verified
-* **Last Completed Task**: Decompiled and verified `label_002_5310`, `label_002_538B`, `TryOpenKeyDoor`, `EnqueueDoorUnlockedSfx`, `label_002_5425`, `GetRoomStatusAddress`, and the Magic Rod / Key Door lookup tables (`02:52E0`-`02:5470`, `02:5B9F`)
-* **Next Task**: Decompile and verify Bank 2 remaining handlers (Side-scrolling physics, Background collision)
-* **Last Update Timestamp**: 2026-09-08T03:30:00+03:00
+* **Current Overall Progress**: 57.81%
+* **Number of Verified Functions**: 703
+* **Number of Decompiled Functions**: 526
+* **Number Remaining**: ~513 functions
+* **Current Subsystem**: ROM Bank 2 (Transcient VFX renderer subsystem, 02:5487-02:5925)
+* **Current Task**: Bank 2 Transcient Visual Effects renderer decompiled and verified
+* **Last Completed Task**: Decompiled and verified `label_002_5487`, `RenderTranscientVfx`, and the 13 type-specific VFX renderers (Sword Beam, Lava Splash, Rumble, Pegasus Dust, Smoke, Moving Sparkle, Laser Beam, Sword Poke, Pegasus/Water Splash, Poof), `func_002_58D0`, `ClearTranscientVfx`, and `func_002_5926` (`02:5487`-`02:5925`)
+* **Next Task**: Decompile and verify Bank 2 room events & door opening/closing (`02:5935`+, `ExecuteRoomEvents`, `DoorOpening`/`DoorClosing`, `ExecuteRoomTriggersAndEffects`)
+* **Last Update Timestamp**: 2026-09-08T13:15:00+03:00
 
 ---
 
@@ -20,6 +20,22 @@
 | Section | Status | Build | Verification | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | `func_002_5928` | VERIFIED | PASS | PASS | Generates water splash transient VFX and triggers JINGLE_WATER_SPLASH (`02:5928`) |
+| `func_002_5926` | VERIFIED | PASS | PASS | Spawns a water-splash VFX at Link's position with the water-splash jingle (`02:5926`) |
+| `label_002_5487` | VERIFIED | PASS | PASS | Per-frame VFX driver: clears indoor room statuses, decrements dialog/photo-album cooldowns, renders all active VFXs, updates staircase state (POI: B+SELECT debug warp is dead code) (`02:5487`) |
+| `RenderTranscientVfx` | VERIFIED | PASS | PASS | Renders one VFX slot: decrements countdown, clears expired/room-transition effects, dispatches to the type-specific renderer (`02:5567`) |
+| `RenderTranscientSwordBeam` | VERIFIED | PASS | PASS | Renders sword beam on alternating frames (frame XOR slot parity), selects beam animation tables by frame bit 1 (`02:55DC`) |
+| `RenderTranscientLavaSplash` | VERIFIED | PASS | PASS | Renders the four-sprite lava splash with fixed offsets/tiles/attrs (`02:560C`) |
+| `RenderTranscientRumble` | VERIFIED | PASS | PASS | Dungeon rumble: screen shake, door-unlocked/key-cavern SFX by countdown phase, rock-tile draw command with RAM2 object backup and dungeon-opened jingle (`02:5646`) |
+| `RenderTranscientPegasusDust` | VERIFIED | PASS | PASS | Pegasus boots dust sprites - dynamic OAM (boots) or static OAM (02:5718) |
+| `RenderTranscientSmoke` | VERIFIED | PASS | PASS | Smoke poof two-sprite renderer (`02:5746`) |
+| `RenderTranscientMovingSparkle` | VERIFIED | PASS | PASS | Moving sparkle (unlit room): drifts position from wC590 offsets, tile 0x3A/0x3C by countdown (`02:575E`) |
+| `RenderTranscientLaserBeam` | VERIFIED | PASS | PASS | Single laser beam sprite with alternating horizontal-flip flag (`02:57B4`) |
+| `RenderTranscientSwordPoke` | VERIFIED | PASS | PASS | Sword poking wall two-sprite renderer (`02:57ED`) |
+| `RenderTranscientPegasusSplash` | VERIFIED | PASS | PASS | Pegasus boots splash two-sprite renderer (`02:581D`) |
+| `RenderTranscientWaterSplash` | VERIFIED | PASS | PASS | Water splash - DMG or CGB sprite sets, selected by wC1A7 (`02:5825`) |
+| `RenderTranscientPoof` | VERIFIED | PASS | PASS | Reveal poof: invokes chest/staircase reveal callbacks on the final frame, animated two-sprite renderer (`02:58A4`) |
+| `func_002_58D0` | VERIFIED | PASS | PASS | Loads VFX coordinates into hMultiPurpose1/2 and clears effects that moved off-screen (`02:58D0`) |
+| `ClearTranscientVfx` | VERIFIED | PASS | PASS | Removes a transcient vfx from the effects table (`02:58E6`) |
 | `LinkMotionSwimmingHandler` | VERIFIED | PASS | PASS | Handles swimming/diving physics, A stroke speed boost, B dive toggle, and underwater heart/warp checks (`02:4F30`) |
 | `LinkMotionUnknownHandler` | VERIFIED | PASS | PASS | Unknown / falling motion state 0x0F: blocks input, integrates Z velocity, transitions map on threshold (`02:50A3`) |
 | `LinkMotionFallingDownHandler` | VERIFIED | PASS | PASS | Handles pit/hole falling animation, warp hole transitions, waterfall warps, and pit damage (`02:50D4`) |

@@ -92,6 +92,11 @@
 #define wKillOrder                   0xDBB6
 #define wTorchesCount                0xDBC9
 #define wColorDungeonRoomStatus      0xDDE0
+#define wColorDungonCorrectTombStones 0xDDD9
+#define wC1A7                   0xC1A7
+#define wNextWorldMusicTrackCountdown 0xC5AF
+#define wDebugWarpIndex         0xD479
+#define wPhotoAlbumCooldown     0xDE05
 #define wGameplayType           0xDB95
 #define wGameplaySubtype        0xDB96
 #define wIsIndoor               0xDBA5
