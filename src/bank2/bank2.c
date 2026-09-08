@@ -2463,3 +2463,238 @@ jr_002_52B3:
 jr_002_52B5:
     gb_write_hram(gb, hLinkAnimationState, e);
 }
+
+/* Bank 2 Magic Rod & Key Door Tables (02:52E0) */
+const int8_t LinkDirectionToMagicRodXOffset[8] = {
+    0x0D, (int8_t)0xF3, 0x00, (int8_t)0xFF, /* Forward swing: right, left, up, down */
+    0x08, (int8_t)0xF8, 0x0C, (int8_t)0xF5  /* Side swing:    right, left, up, down */
+};
+
+const int8_t LinkDirectionToMagicRodYOffset[8] = {
+    0x00, 0x00, (int8_t)0xF3, 0x0E, /* Forward swing: right, left, up, down */
+    (int8_t)0xF3, (int8_t)0xF3, (int8_t)0xFC, 0x00 /* Side swing:    right, left, up, down */
+};
+
+const uint8_t LinkDirectionToMagicRodTiles[16] = {
+    0x06, 0x08, 0x08, 0x06, 0x04, 0xFF, 0xFF, 0x04, /* Forward swing */
+    0x04, 0xFF, 0xFF, 0x04, 0x06, 0x08, 0x08, 0x06  /* Side swing    */
+};
+
+const uint8_t LinkDirectionToMagicRodOAMAttributes[16] = {
+    0x02, 0x02, 0x22, 0x22, 0x22, 0x02, 0x02, 0x42, /* Forward swing */
+    0x22, 0x02, 0x02, 0x22, 0x02, 0x02, 0x22, 0x22  /* Side swing    */
+};
+
+const int8_t LinkDirectionToEntitiesPositionX[4] = {
+    0x04,  /* DIRECTION_RIGHT */
+    -0x04, /* DIRECTION_LEFT */
+    -0x04, /* DIRECTION_UP */
+    0x04   /* DIRECTION_DOWN */
+};
+
+const int8_t LinkDirectionToEntitiesPositionY[4] = {
+    0x04, /* DIRECTION_RIGHT */
+    0x04, /* DIRECTION_LEFT */
+    -0x04,/* DIRECTION_UP */
+    0x04  /* DIRECTION_DOWN */
+};
+
+/* label_140F (00:140F) projectile speeds indexed by Link direction; the second
+ * half is used when the Piece of Power power-up is active. */
+static const int8_t Data_ToMagicRodProjectileSpeedX[8] = {
+    0x30, (int8_t)0xD0, 0x00, 0x00, /* without Piece of Power */
+    0x40, (int8_t)0xC0, 0x00, 0x00  /* with Piece of Power    */
+};
+
+static const int8_t Data_ToMagicRodProjectileSpeedY[8] = {
+    0x00, 0x00, (int8_t)0xD0, 0x30, /* without Piece of Power */
+    0x00, 0x00, (int8_t)0xC0, 0x40  /* with Piece of Power    */
+};
+
+void label_002_5310(GBState *gb) {
+    if (!gb) return;
+
+    uint8_t index = gb_read_hram(gb, hLinkDirection);
+    if ((gb_read(gb, wLinkAttackStepAnimationCountdown) & ATTACK_STEP_DURATION_MASK) >= 0x08) {
+        index = (uint8_t)(index + 4);
+    }
+
+    uint8_t mp0 = (uint8_t)LinkDirectionToMagicRodYOffset[index];
+    uint8_t mp1 = (uint8_t)LinkDirectionToMagicRodXOffset[index];
+    uint8_t mp2 = LinkDirectionToMagicRodTiles[index * 2];
+    uint8_t mp3 = LinkDirectionToMagicRodTiles[index * 2 + 1];
+    uint8_t mp4 = LinkDirectionToMagicRodOAMAttributes[index * 2];
+    uint8_t mp5 = LinkDirectionToMagicRodOAMAttributes[index * 2 + 1];
+
+    gb_write_hram(gb, hMultiPurpose1, mp1);
+    gb_write_hram(gb, hMultiPurpose2, mp2);
+    gb_write_hram(gb, hMultiPurpose3, mp3);
+    gb_write_hram(gb, hMultiPurpose4, mp4);
+    gb_write_hram(gb, hMultiPurpose5, mp5);
+
+    uint16_t oam1 = wLinkOAMBuffer + 0x10;
+    uint16_t oam2 = wLinkOAMBuffer + 0x14;
+
+    uint8_t y = (uint8_t)(gb_read(gb, wC145) + gb_read(gb, wC13B) + mp0);
+    gb_write_hram(gb, hMultiPurpose0, y);
+
+    if (mp2 != 0xFF) {
+        gb_write(gb, oam1, y);
+    }
+    if (mp3 != 0xFF) {
+        gb_write(gb, oam2, y);
+    }
+
+    oam1++;
+    oam2++;
+    uint8_t x = (uint8_t)(gb_read_hram(gb, hLinkPositionX) + mp1);
+    gb_write(gb, oam1, x);
+    gb_write(gb, oam2, (uint8_t)(x + 0x08));
+
+    oam1++;
+    oam2++;
+    gb_write(gb, oam1, mp2);
+    gb_write(gb, oam2, mp3);
+
+    oam1++;
+    oam2++;
+    gb_write(gb, oam1, mp4);
+    gb_write(gb, oam2, mp5);
+}
+
+void label_002_538B(GBState *gb, uint16_t de) {
+    if (!gb) return;
+
+    uint8_t dir = gb_read_hram(gb, hLinkDirection) & 0x03;
+
+    uint8_t pos_x = (uint8_t)(gb_read_hram(gb, hLinkPositionX) + LinkDirectionToEntitiesPositionX[dir]);
+    uint8_t pos_y = (uint8_t)(gb_read_hram(gb, hLinkPositionY) + LinkDirectionToEntitiesPositionY[dir]);
+    gb_write(gb, (uint16_t)(wEntitiesPosXTable + de), pos_x);
+    gb_write(gb, (uint16_t)(wEntitiesPosYTable + de), pos_y);
+
+    /* ld hl, wEntitiesSpriteVariantTable; add hl, de; ld [hl], d */
+    gb_write(gb, (uint16_t)(wEntitiesSpriteVariantTable + de), (uint8_t)(de >> 8));
+
+    /* jp label_140F (00:140F): set entity speed from Link direction,
+     * offsetting the table by 4 when the Piece of Power is active. */
+    uint8_t offset = dir;
+    if (gb_read(gb, wActivePowerUp) == ACTIVE_POWER_UP_PIECE_OF_POWER) {
+        offset = (uint8_t)(offset + 4);
+    }
+    gb_write(gb, (uint16_t)(wEntitiesSpeedXTable + de), (uint8_t)Data_ToMagicRodProjectileSpeedX[offset]);
+    gb_write(gb, (uint16_t)(wEntitiesSpeedYTable + de), (uint8_t)Data_ToMagicRodProjectileSpeedY[offset]);
+}
+
+/* Retrieve the address (HL) of the status flags for the current room (02:5B9F). */
+uint16_t GetRoomStatusAddress(GBState *gb) {
+    if (!gb) return 0;
+
+    uint16_t hl = wOverworldRoomStatus;
+    uint8_t e = gb_read_hram(gb, hMapRoom);
+    uint8_t d = gb_read(gb, wIsIndoor);
+
+    if (d != 0) {
+        uint8_t map_id = gb_read_hram(gb, hMapId);
+        if (map_id == MAP_COLOR_DUNGEON) {
+            d = 0;
+            hl = wColorDungeonRoomStatus;
+        } else if (map_id >= MAP_INDOORS_B_START && map_id < MAP_INDOORS_B_END) {
+            d++;
+        }
+    }
+
+    return (uint16_t)(hl + ((uint16_t)d << 8) + e);
+}
+
+void TryOpenKeyDoor(GBState *gb,
+                    uint16_t (*spawn_new_entity)(GBState *, uint8_t),
+                    void (*reveal_object)(GBState *),
+                    void (*sync_dungeon_item_flags)(GBState *)) {
+    if (!gb) return;
+
+    if (gb_read_hram(gb, hMultiPurposeG) != 0x40) {
+        /* Player can't open the door without a small key for this dungeon. */
+        if (gb_read(gb, wSmallKeysCount) == 0) {
+            return;
+        }
+
+        /* Open key door with a small key. */
+        gb_write(gb, wSmallKeysCount, (uint8_t)(gb_read(gb, wSmallKeysCount) - 1));
+        SynchronizeDungeonsItemFlags_trampoline(gb, sync_dungeon_item_flags);
+        EnqueueDoorUnlockedSfx(gb);
+
+        uint16_t status_addr = GetRoomStatusAddress(gb);
+        uint8_t status = (uint8_t)(gb_read(gb, status_addr) | ROOM_STATUS_EVENT_3);
+        gb_write(gb, status_addr, status);
+        gb_write_hram(gb, hRoomStatus, status);
+
+        uint8_t left = (uint8_t)(gb_read_hram(gb, hMultiPurpose4) & 0xF0);
+        uint8_t top = (uint8_t)(gb_read_hram(gb, hMultiPurpose5) & 0xF0);
+        gb_write_hram(gb, hIntersectedObjectLeft, left);
+        gb_write_hram(gb, hIntersectedObjectTop, top);
+
+        /* DE = (hMultiPurpose5 & 0xF0) | ((hMultiPurpose4 & 0xF0) >> 4) is the
+         * room-object grid index consumed by RevealObjectUnderObject; the
+         * callback recomputes it from hIntersectedObjectLeft/hIntersectedObjectTop. */
+        RevealObjectUnderObject_trampoline(gb, reveal_object);
+
+        gb_write_hram(gb, hMultiPurpose0, (uint8_t)(gb_read_hram(gb, hIntersectedObjectLeft) + 0x08));
+        gb_write_hram(gb, hMultiPurpose1, (uint8_t)(gb_read_hram(gb, hIntersectedObjectTop) + 0x10));
+        AddTranscientVfx(gb, TRANSCIENT_VFX_POOF);
+        return;
+    }
+
+    /* Object band 0x40: spawn a pushed block at the intersected object. */
+    uint16_t slot = SpawnNewEntity_trampoline(gb, ENTITY_PUSHED_BLOCK, spawn_new_entity);
+    if (slot == 0xFFFF) {
+        return;
+    }
+
+    gb_write(gb, (uint16_t)(wEntitiesStatusTable + slot),
+             (uint8_t)(gb_read(gb, (uint16_t)(wEntitiesStatusTable + slot)) - 1));
+
+    uint8_t block_x = (uint8_t)((gb_read_hram(gb, hMultiPurpose4) & 0xF0) + 0x08);
+    gb_write(gb, (uint16_t)(wEntitiesPosXTable + slot), block_x);
+
+    uint8_t block_y = (uint8_t)((gb_read_hram(gb, hMultiPurpose5) & 0xF0) + 0x10);
+    gb_write(gb, (uint16_t)(wEntitiesPosYTable + slot), block_y);
+}
+
+void EnqueueDoorUnlockedSfx(GBState *gb) {
+    if (!gb) return;
+    gb_write_hram(gb, hNoiseSfx, NOISE_SFX_DOOR_UNLOCKED);
+}
+
+void label_002_5425(GBState *gb, uint16_t (*spawn_new_entity)(GBState *, uint8_t)) {
+    if (!gb) return;
+
+    uint8_t map_id = gb_read_hram(gb, hMapId);
+    uint8_t entity_type = ENTITY_KEY_DROP_POINT;
+    if (map_id != MAP_COLOR_DUNGEON && map_id >= MAP_CAVE_B) {
+        entity_type = ENTITY_HIDING_SLIME_KEY;
+    }
+
+    uint16_t slot = SpawnNewEntity_trampoline(gb, entity_type, spawn_new_entity);
+    if (slot == 0xFFFF) {
+        return;
+    }
+
+    map_id = gb_read_hram(gb, hMapId);
+    gb_write(gb, (uint16_t)(wEntitiesPosXTable + slot), 0x28);
+    if (map_id == MAP_COLOR_DUNGEON) {
+        gb_write(gb, (uint16_t)(wEntitiesPosXTable + slot), 0x48);
+        if (gb_read_hram(gb, hMapRoom) == ROOM_OW_MARIN_BRIDGE) {
+            gb_write(gb, (uint16_t)(wEntitiesPosXTable + slot), 0x58);
+        }
+    }
+
+    gb_write(gb, (uint16_t)(wEntitiesPosYTable + slot), 0x3C);
+    if (map_id == MAP_COLOR_DUNGEON) {
+        gb_write(gb, (uint16_t)(wEntitiesPosYTable + slot), 0x3C);
+        if (gb_read_hram(gb, hMapRoom) == ROOM_OW_MARIN_BRIDGE) {
+            gb_write(gb, (uint16_t)(wEntitiesPosYTable + slot), 0x3C);
+        }
+    }
+
+    gb_write(gb, (uint16_t)(wEntitiesPosZTable + slot), 0x70);
+}

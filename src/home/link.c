@@ -427,7 +427,7 @@ void func_1A39(GBState *gb, void (*func_020_6c7a)(GBState *), void (*func_020_56
 void ApplyLinkMotionState(GBState *gb,
                           void (*func_002_753a)(GBState *),
                           void (*label_002_5310)(GBState *),
-                          void (*label_002_538b)(GBState *)) {
+                          void (*label_002_538b)(GBState *, uint16_t)) {
     if (!gb) return;
 
     if (func_002_753a) {
@@ -475,7 +475,7 @@ void ApplyLinkMotionState(GBState *gb,
                 if (spawned) {
                     gb_write(gb, hNoiseSfx, NOISE_SFX_MAGIC_ROD);
                     if (label_002_538b) {
-                        label_002_538b(gb);
+                        label_002_538b(gb, fireball_idx);
                     }
                 }
             }

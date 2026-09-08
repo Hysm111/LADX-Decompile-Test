@@ -132,7 +132,7 @@ void ClearLinkPositionIncrement(GBState *gb);
 void ApplyLinkMotionState(GBState *gb,
                           void (*func_002_753a)(GBState *),
                           void (*label_002_5310)(GBState *),
-                          void (*label_002_538b)(GBState *));
+                          void (*label_002_538b)(GBState *, uint16_t));
 
 /**
  * Bank 20 helper callers (00:1819, 00:1828).

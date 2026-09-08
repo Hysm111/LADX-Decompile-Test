@@ -4,14 +4,14 @@
 
 * **Project Name**: Zelda: Link's Awakening DX C/C++ Decompilation
 * **Current Overall Progress**: 56.00%
-* **Number of Verified Functions**: 681
-* **Number of Decompiled Functions**: 504
-* **Number Remaining**: ~535 functions
-* **Current Subsystem**: ROM Bank 2 (Swimming, Diving & Hole Falling, Item Got, Link Recover, 02:4EF0-02:52DF)
-* **Current Task**: Bank 2 Item Got & Link Recover handlers decompiled and verified
-* **Last Completed Task**: Decompiled and verified `HandleGotItemA`, `HandleGotItemB`, `func_002_523A`, `func_002_523F`, `func_002_524A`, and `LinkMotionRecoverHandler` (`02:51BC`-`02:52B8`)
-* **Next Task**: Decompile and verify Bank 2 remaining handlers (Magic Rod, Side-scrolling physics, Background collision)
-* **Last Update Timestamp**: 2026-09-08T02:00:00+03:00
+* **Number of Verified Functions**: 687
+* **Number of Decompiled Functions**: 510
+* **Number Remaining**: ~529 functions
+* **Current Subsystem**: ROM Bank 2 (Magic Rod, Key Doors & Room Status, 02:52E0-02:5470, 02:5B9F)
+* **Current Task**: Bank 2 Magic Rod OAM, entity positioning, key door, room status handlers decompiled and verified
+* **Last Completed Task**: Decompiled and verified `label_002_5310`, `label_002_538B`, `TryOpenKeyDoor`, `EnqueueDoorUnlockedSfx`, `label_002_5425`, `GetRoomStatusAddress`, and the Magic Rod / Key Door lookup tables (`02:52E0`-`02:5470`, `02:5B9F`)
+* **Next Task**: Decompile and verify Bank 2 remaining handlers (Side-scrolling physics, Background collision)
+* **Last Update Timestamp**: 2026-09-08T03:30:00+03:00
 
 ---
 
@@ -31,6 +31,12 @@
 | `func_002_523F` | VERIFIED | PASS | PASS | Got item OAM helper: writes magic powder/toadstool tile and attribute 0x14 (`02:523F`) |
 | `func_002_524A` | VERIFIED | PASS | PASS | Got item OAM helper: writes rod tile and attribute 0x10 (`02:524A`) |
 | `LinkMotionRecoverHandler` | VERIFIED | PASS | PASS | Link recover from knockback: resets spin, clears position increment, handles physics modifier 6 (damage), Angler's Tunnel entrance positioning, animation state based on countdown (`02:5267`) |
+| `label_002_5310` | VERIFIED | PASS | PASS | Builds Magic Rod OAM sprites from facing direction + attack step phase, writes Y/X/tile/attr into OAM entries 4-5 (`02:5310`) |
+| `label_002_538B` | VERIFIED | PASS | PASS | Positions entity (DE) in front of Link, sets sprite variant, applies Piece of Power-affected projectile speeds via label_140F logic (`02:538B`) |
+| `TryOpenKeyDoor` | VERIFIED | PASS | PASS | Opens key door with small key (synchronizes flags, unlock SFX, room status EVENT_3, reveal object, poof VFX) or spawns pushed block for band 0x40 (`02:53B0`) |
+| `EnqueueDoorUnlockedSfx` | VERIFIED | PASS | PASS | Enqueues the door-unlocked noise SFX (NOISE_SFX_DOOR_UNLOCKED) (`02:5420`) |
+| `label_002_5425` | VERIFIED | PASS | PASS | Spawns key drop point or hiding slime key falling entity with map-specific X/Y positioning (`02:5425`) |
+| `GetRoomStatusAddress` | VERIFIED | PASS | PASS | Computes current room status flag address: overworld/indoor-A/indoor-B/color dungeon (`02:5B9F`) |
 | `label_002_4D97` | VERIFIED | PASS | PASS | Replaces room object with 0xAE, queries GBC attributes via func_91D_jp_92E, emits 10-byte draw command (`02:4D97`) |
 | `func_002_4DFC` | VERIFIED | PASS | PASS | Copies 8 bytes of object palette 1 from WRAM bank 1 to WRAM bank 2 (`02:4DFC`) |
 | `func_002_4E2C` | VERIFIED | PASS | PASS | Loads 8 bytes from Data_002_4E1C into wObjPal8 and flags palette update (`02:4E2C`) |

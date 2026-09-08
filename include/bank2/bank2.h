@@ -430,4 +430,67 @@ void func_002_524A(GBState *gb, uint16_t bc, uint8_t e);
 /* Bank 2 Link Motion Recover Handler */
 void LinkMotionRecoverHandler(GBState *gb);
 
+/* Bank 2 Magic Rod & Key Door Tables */
+extern const int8_t LinkDirectionToMagicRodXOffset[8];
+extern const int8_t LinkDirectionToMagicRodYOffset[8];
+extern const uint8_t LinkDirectionToMagicRodTiles[16];
+extern const uint8_t LinkDirectionToMagicRodOAMAttributes[16];
+extern const int8_t LinkDirectionToEntitiesPositionX[4];
+extern const int8_t LinkDirectionToEntitiesPositionY[4];
+
+/**
+ * Builds Magic Rod OAM sprites (two rods) based on Link's facing direction and
+ * attack-step animation phase (side vs forward swing). (02:5310)
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void label_002_5310(GBState *gb);
+
+/**
+ * Positions an entity (index in DE) in front of Link based on facing direction
+ * and applies projectile speed from the Piece of Power-affected tables. (02:538B)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param de Entity slot index.
+ */
+void label_002_538B(GBState *gb, uint16_t de);
+
+/**
+ * Retrieve the address of the current room's status flags from WRAM (02:5B9F).
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @return Address of the room status byte in WRAM (wOverworldRoomStatus, wIndoorA, or wColorDungeon).
+ */
+uint16_t GetRoomStatusAddress(GBState *gb);
+
+/**
+ * Tries to open a key door with a small key, or spawns a pushed block when the
+ * intersected object uses a band of 0x40. (02:53B0)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param spawn_new_entity Optional callback to spawn entity (00:3B86).
+ * @param reveal_object Optional callback to reveal object under object (00:2178).
+ * @param sync_dungeon_item_flags Optional callback to synchronize dungeon item flags (00:2802).
+ */
+void TryOpenKeyDoor(GBState *gb,
+                    uint16_t (*spawn_new_entity)(GBState *, uint8_t),
+                    void (*reveal_object)(GBState *),
+                    void (*sync_dungeon_item_flags)(GBState *));
+
+/**
+ * Enqueues the door-unlocked noise SFX. (02:5420)
+ *
+ * @param gb Pointer to Game Boy system state.
+ */
+void EnqueueDoorUnlockedSfx(GBState *gb);
+
+/**
+ * Spawns a key drop point (or slime key) entity that falls from the top of the
+ * room, with map-specific positioning. (02:5425)
+ *
+ * @param gb Pointer to Game Boy system state.
+ * @param spawn_new_entity Optional callback to spawn entity (00:3B86).
+ */
+void label_002_5425(GBState *gb, uint16_t (*spawn_new_entity)(GBState *, uint8_t));
+
 #endif /* LADX_BANK2_BANK2_H */

@@ -114,6 +114,17 @@ static uint16_t mock_spawn_entity_fail(GBState *gb, uint8_t entity_type) {
     return 0xFFFF;
 }
 
+static int g_mock_reveal_calls = 0;
+static void mock_reveal_object(GBState *gb) {
+    (void)gb;
+    g_mock_reveal_calls++;
+}
+static int g_mock_sync_calls = 0;
+static void mock_sync_dungeon_item_flags(GBState *gb) {
+    (void)gb;
+    g_mock_sync_calls++;
+}
+
 void run_bank2_tests(void) {
     printf("[*] Running Bank 2 unit tests...\n");
 
@@ -1871,6 +1882,212 @@ void run_bank2_tests(void) {
         assert(gb_read_hram(&gb, hLinkPositionZ) == 0);
         assert(gb_read_hram(&gb, hLinkVelocityZ) == 0);
         assert(gb_read(&gb, wMapEntrancePositionZ) == 0x70);
+    }
+
+    /* Test 50: Magic Rod Tables and label_002_5310 OAM builder */
+    {
+        assert(sizeof(LinkDirectionToMagicRodXOffset) == 8);
+        assert(sizeof(LinkDirectionToMagicRodYOffset) == 8);
+        assert(sizeof(LinkDirectionToMagicRodTiles) == 16);
+        assert(sizeof(LinkDirectionToMagicRodOAMAttributes) == 16);
+        assert(sizeof(LinkDirectionToEntitiesPositionX) == 4);
+        assert(sizeof(LinkDirectionToEntitiesPositionY) == 4);
+
+        assert(LinkDirectionToMagicRodXOffset[0] == 0x0D);  /* forward right */
+        assert(LinkDirectionToMagicRodXOffset[1] == -0x0D); /* forward left  */
+        assert(LinkDirectionToMagicRodTiles[0] == 0x06);
+        assert(LinkDirectionToMagicRodTiles[1] == 0x08);
+        assert(LinkDirectionToMagicRodTiles[5] == 0xFF);
+        assert(LinkDirectionToMagicRodOAMAttributes[0] == 0x02);
+        assert(LinkDirectionToEntitiesPositionX[DIRECTION_UP] == -0x04);
+
+        /* facing RIGHT, attack step phase < 0x08 (forward-swing) */
+        {
+            GBState gb;
+            gb_init(&gb);
+            gb_write(&gb, wLinkAttackStepAnimationCountdown, 0x04);
+            gb_write_hram(&gb, hLinkDirection, DIRECTION_RIGHT);
+            gb_write(&gb, wC145, 0x10);
+            gb_write(&gb, wC13B, 0x20);
+            gb_write_hram(&gb, hLinkPositionX, 0x40);
+
+            label_002_5310(&gb);
+
+            /* index = 0 (forward-right): Y offset = 0x00, X offset = 0x0D */
+            uint8_t exp_y = (uint8_t)(0x10 + 0x20 + 0x00);
+            uint8_t exp_x = (uint8_t)(0x40 + 0x0D);
+            assert(gb_read_hram(&gb, hMultiPurpose0) == exp_y);
+            assert(gb_read_hram(&gb, hMultiPurpose1) == 0x0D);
+            assert(gb_read_hram(&gb, hMultiPurpose2) == 0x06);
+            assert(gb_read_hram(&gb, hMultiPurpose3) == 0x08);
+            assert(gb_read_hram(&gb, hMultiPurpose4) == 0x02);
+            assert(gb_read_hram(&gb, hMultiPurpose5) == 0x02);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x10) == exp_y);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x11) == exp_x);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x12) == 0x06);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x13) == 0x02);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x14) == exp_y);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x15) == (uint8_t)(exp_x + 0x08));
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x16) == 0x08);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x17) == 0x02);
+        }
+
+        /* facing UP, phase >= 0x08 (side-swing): index = 2 + 4 = 6 */
+        {
+            GBState gb;
+            gb_init(&gb);
+            gb_write(&gb, wLinkAttackStepAnimationCountdown, 0x08);
+            gb_write_hram(&gb, hLinkDirection, DIRECTION_UP);
+            gb_write(&gb, wC145, 0);
+            gb_write(&gb, wC13B, 0);
+            gb_write_hram(&gb, hLinkPositionX, 0x50);
+
+            label_002_5310(&gb);
+
+            /* index 6: X offset = 0x0C, Y offset = 0xFC */
+            uint8_t exp_y = (uint8_t)(0xFC);
+            uint8_t exp_x = (uint8_t)(0x50 + 0x0C);
+            assert(gb_read_hram(&gb, hMultiPurpose0) == exp_y);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x10) == exp_y);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x11) == exp_x);
+            /* index std 6, tiles[12]=0x06, tiles[13]=0x08 */
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x12) == 0x06);
+            assert(gb_read(&gb, wLinkOAMBuffer + 0x16) == 0x08);
+        }
+    }
+
+    /* Test 51: label_002_538B positions entity in front of Link and sets speed */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hLinkDirection, DIRECTION_LEFT);
+        gb_write_hram(&gb, hLinkPositionX, 0x40);
+        gb_write_hram(&gb, hLinkPositionY, 0x20);
+        gb_write(&gb, wActivePowerUp, 0);
+
+        label_002_538B(&gb, 15);
+
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosXTable + 15)) == (uint8_t)(0x40 - 4));
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosYTable + 15)) == (uint8_t)(0x20 + 4));
+        assert(gb_read(&gb, (uint16_t)(wEntitiesSpriteVariantTable + 15)) == 0);
+        assert((int8_t)gb_read(&gb, (uint16_t)(wEntitiesSpeedXTable + 15)) == -0x30);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesSpeedYTable + 15)) == 0x00);
+
+        /* Piece of Power active: table offset by 4 -> speed 0xC0 */
+        gb_write(&gb, wActivePowerUp, ACTIVE_POWER_UP_PIECE_OF_POWER);
+        label_002_538B(&gb, 15);
+        assert((int8_t)gb_read(&gb, (uint16_t)(wEntitiesSpeedXTable + 15)) == -0x40);
+        assert((int8_t)gb_read(&gb, (uint16_t)(wEntitiesSpeedYTable + 15)) == 0);
+    }
+
+    /* Test 52: EnqueueDoorUnlockedSfx */
+    {
+        GBState gb;
+        gb_init(&gb);
+        EnqueueDoorUnlockedSfx(&gb);
+        assert(gb_read_hram(&gb, hNoiseSfx) == NOISE_SFX_DOOR_UNLOCKED);
+    }
+
+    /* Test 53: GetRoomStatusAddress */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMapRoom, 0x1A);
+
+        /* Overworld (wIsIndoor == 0) */
+        gb_write(&gb, wIsIndoor, 0);
+        assert(GetRoomStatusAddress(&gb) == 0xD800 + 0x1A);
+
+        /* Indoors-B map (wIsIndoor != 0, map id in [0x06, 0x1A)) -> 0xDA00 */
+        gb_write(&gb, wIsIndoor, 1);
+        gb_write_hram(&gb, hMapId, MAP_INDOORS_B_START);
+        assert(GetRoomStatusAddress(&gb) == 0xDA00 + 0x1A);
+
+        /* Color dungeon -> wColorDungeonRoomStatus */
+        gb_write_hram(&gb, hMapId, MAP_COLOR_DUNGEON);
+        assert(GetRoomStatusAddress(&gb) == 0xDDE0 + 0x1A);
+    }
+
+    /* Test 54: TryOpenKeyDoor - small key path */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMultiPurposeG, 0x10); /* not band 0x40 */
+        gb_write(&gb, wSmallKeysCount, 1);
+        gb_write_hram(&gb, hMultiPurpose4, 0xA0);
+        gb_write_hram(&gb, hMultiPurpose5, 0x80);
+        gb_write(&gb, wIsIndoor, 0);
+        gb_write_hram(&gb, hMapRoom, 0x05);
+
+        g_mock_reveal_calls = 0;
+        g_mock_sync_calls = 0;
+
+        TryOpenKeyDoor(&gb, mock_spawn_entity, mock_reveal_object, mock_sync_dungeon_item_flags);
+
+        assert(gb_read(&gb, wSmallKeysCount) == 0);
+        assert(g_mock_sync_calls == 1);
+        assert(g_mock_reveal_calls == 1);
+        uint16_t status_addr = GetRoomStatusAddress(&gb);
+        assert((gb_read(&gb, status_addr) & ROOM_STATUS_EVENT_3) != 0);
+        assert(gb_read_hram(&gb, hRoomStatus) == gb_read(&gb, status_addr));
+        assert(gb_read_hram(&gb, hIntersectedObjectLeft) == 0xA0);
+        assert(gb_read_hram(&gb, hIntersectedObjectTop) == 0x80);
+        assert(gb_read_hram(&gb, hMultiPurpose0) == 0xA8);
+        assert(gb_read_hram(&gb, hMultiPurpose1) == 0x90);
+        assert(gb_read_hram(&gb, hNoiseSfx) == NOISE_SFX_DOOR_UNLOCKED);
+    }
+
+    /* Test 55: TryOpenKeyDoor - no small key returns without side effects */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMultiPurposeG, 0x10);
+        gb_write(&gb, wSmallKeysCount, 0);
+
+        TryOpenKeyDoor(&gb, mock_spawn_entity, NULL, NULL);
+        assert(gb_read(&gb, wSmallKeysCount) == 0);
+    }
+
+    /* Test 56: TryOpenKeyDoor - pushed block spawn path */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMultiPurposeG, 0x40);
+        gb_write_hram(&gb, hMultiPurpose4, 0xA0);
+        gb_write_hram(&gb, hMultiPurpose5, 0x80);
+
+        TryOpenKeyDoor(&gb, mock_spawn_entity_slot3, NULL, NULL);
+
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosXTable + 3)) == 0xA8);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosYTable + 3)) == 0x90);
+        /* wEntitiesStatusTable[3] - 1 == 4 (mock wrote ENTITY_STATUS_ACTIVE=5) */
+        assert(gb_read(&gb, (uint16_t)(wEntitiesStatusTable + 3)) == 4);
+    }
+
+    /* Test 57: label_002_5425 key drop point / slime key */
+    {
+        GBState gb;
+        gb_init(&gb);
+        gb_write_hram(&gb, hMapId, MAP_TAIL_CAVE); /* < MAP_CAVE_B -> key drop point */
+        gb_write_hram(&gb, hMapRoom, 0x10);
+
+        label_002_5425(&gb, mock_spawn_entity);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesTypeTable + 15)) == ENTITY_KEY_DROP_POINT);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosXTable + 15)) == 0x28);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosYTable + 15)) == 0x3C);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosZTable + 15)) == 0x70);
+
+        /* Map id >= MAP_CAVE_B (but not color dungeon) -> hiding slime key */
+        gb_write_hram(&gb, hMapId, 0x0B);
+        label_002_5425(&gb, mock_spawn_entity);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesTypeTable + 15)) == ENTITY_HIDING_SLIME_KEY);
+
+        /* Color dungeon, ROOM_OW_MARIN_BRIDGE -> x = 0x58 */
+        gb_write_hram(&gb, hMapId, MAP_COLOR_DUNGEON);
+        gb_write_hram(&gb, hMapRoom, ROOM_OW_MARIN_BRIDGE);
+        label_002_5425(&gb, mock_spawn_entity);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosXTable + 15)) == 0x58);
+        assert(gb_read(&gb, (uint16_t)(wEntitiesPosYTable + 15)) == 0x3C);
     }
 
     printf("[+] Bank 2 unit tests passed successfully!\n");

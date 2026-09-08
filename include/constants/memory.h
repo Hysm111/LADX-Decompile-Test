@@ -525,6 +525,7 @@
 #define wHasDungeonCompass                    0xDBCD
 #define wHasDungeonStoneBeak                  0xDBCE
 #define wHasDungeonBossKey                    0xDBCF
+#define wSmallKeysCount                       0xDBD0
 #define wLinkFallingDownObjectPhysics         0xDBCB
 #define wLinkMapEntryPositionX                0xDBB1
 #define wLinkMapEntryPositionY                0xDBB2
